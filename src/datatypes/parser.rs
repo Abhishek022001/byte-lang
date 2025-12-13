@@ -104,7 +104,7 @@ impl<'a> Parser<'a> {
                 let option_name : Option<String> = match self.current_token().kind {
                     TokenType::Identifiers(identifier) => {
                         match identifier {
-                            Identifiers::VariableName(name) => Some(name),
+                            Identifiers::Identifier(name) => Some(name),
                             _ => None
                         }
                     },

@@ -1,5 +1,9 @@
-\\
+//
 Root file
-\\
+//
+
+number test = 0;
+
+println("hello world");
 
 term;

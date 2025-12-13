@@ -1,9 +1,0 @@
-number test = 10;
-
-println("hello world");
-println("hello world");
-println("hello world");
-println("hello world");
-println("hello world\n");
-
-term;

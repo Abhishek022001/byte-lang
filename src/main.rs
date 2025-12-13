@@ -9,8 +9,7 @@ mod compile_asm;
 mod datatypes;
 
 use compile_asm::compile_asm;
-use datatypes::parser::{get_offset, parse_code};
-use datatypes::{FunctionStruct, ArgType, StackItem, LoopStruct, VariableType, StackFrame, DataBoolean, DataNumber};
+use datatypes::parser::{parse_code};
 
 fn main() {
     let start = std::time::Instant::now();
@@ -152,9 +151,9 @@ r#"{{
     let mut main_file_writer = BufWriter::new(main_file);
 
     write!(main_file_writer,
-r#"\\
+r#"//
 Root file
-\\
+//
 
 term;"#).unwrap();
 
@@ -174,8 +173,7 @@ fn compile_file() {
 
     let mut content = String::new();
 
-    file.read_to_string(&mut content)
-        .expect("Error Reading As String");
+    file.read_to_string(&mut content).expect("Error Reading As String");
 
     // Get the path that user is in when running the run command!
     let current_dir = std::env::current_dir().expect("Error getting current Path");
@@ -221,7 +219,6 @@ _start:
 
     // Compile the assembly file.
     compile_asm(current_dir);
-
 }
 
 fn run_file() {

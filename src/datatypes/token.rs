@@ -26,7 +26,7 @@ pub enum Keywords {
 pub enum Identifiers {
     StringLiteral(String),
     NumberLiteral(i32),
-    VariableName(String)
+    Identifier(String)
 }
 
 #[derive(Debug, PartialEq, Clone)]
