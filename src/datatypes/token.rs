@@ -1,3 +1,5 @@
+use crate::datatypes::DeclareVariableType;
+
 use super::print_string::PrintString;
 use super::data_string::DataString;
 use super::data_number::DataNumber;
@@ -18,8 +20,7 @@ pub struct Token {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Keywords {
-    NumberType,
-    StringType,
+    VariableType(DeclareVariableType)
 }
 
 #[derive(Debug, PartialEq, Clone)]

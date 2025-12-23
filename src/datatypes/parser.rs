@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::{fs::File, io::Read};
 
-use super::{CompareType, FunctionStruct, Punctuations, CodeGenerator, Statement, SemanticAnaytis, StackItem, BuildInCommand, TokenType, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber, ArgType, FunctionArg, ValueType, Statements, Identifiers, Literal, VariableDeclaration, BuildInFunctionsAst, Expression, DeclareVariableType, BuildInFunctions, Keywords, Operators};
+use super::{CompareType, FunctionStruct, Punctuations, CodeGenerator, Statement, SemanticAnaytis, BuildInCommand, TokenType, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber, ArgType, FunctionArg, ValueType, Statements, Identifiers, Literal, VariableDeclaration, BuildInFunctionsAst, Expression, DeclareVariableType, BuildInFunctions, Keywords, Operators};
 
 pub struct Parser<'a> {
     input: &'a Vec<Token>,
@@ -35,7 +35,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_next(&mut self) -> Result<Statement, String> {
-        let token = self.current_token();
+        let token = self.next_token();
 
         println!("{:?}", token.kind);
 
@@ -48,7 +48,7 @@ impl<'a> Parser<'a> {
             TokenType::BuildInCommand(command) => {
                 match command {
                     BuildInCommand::Terminate => {
-                        let semicolon_token = self.current_token();
+                        let semicolon_token = self.next_token();
                         if semicolon_token.kind != TokenType::Semicolon {
                             return Err(String::from("Expected Semicolon after Terminate"));
                         };
@@ -60,11 +60,11 @@ impl<'a> Parser<'a> {
             TokenType::BuildInFunctions(func) => {
                 match func {
                     BuildInFunctions::Println => {
-                        if self.current_token().kind != TokenType::Punctuation(Punctuations::OpenParenthesis) {
+                        if self.next_token().kind != TokenType::Punctuation(Punctuations::OpenParenthesis) {
                             return Err(String::new());
                         };
 
-                        let string_val : String = match self.current_token().kind {
+                        let string_val : String = match self.next_token().kind {
                             TokenType::Identifiers(identifier) => {
                                 match identifier {
                                     Identifiers::StringLiteral(str) => str,
@@ -78,11 +78,11 @@ impl<'a> Parser<'a> {
                             }
                         };
     
-                        if self.current_token().kind != TokenType::Punctuation(Punctuations::ClosedParenthesis) {
+                        if self.next_token().kind != TokenType::Punctuation(Punctuations::ClosedParenthesis) {
                             return Err(String::new());
                         };
 
-                        let semicolon = self.current_token();
+                        let semicolon = self.next_token();
 
                         if semicolon.kind != TokenType::Semicolon {
                             return Err(String::new());
@@ -97,11 +97,10 @@ impl<'a> Parser<'a> {
             },
             TokenType::Keyword(keyword) => {
                 let variable_type : DeclareVariableType = match keyword {
-                    Keywords::NumberType => DeclareVariableType::Number,
-                    Keywords::StringType => DeclareVariableType::String,
+                    Keywords::VariableType(var_type) => var_type
                 };
 
-                let option_name : Option<String> = match self.current_token().kind {
+                let option_name : Option<String> = match self.next_token().kind {
                     TokenType::Identifiers(identifier) => {
                         match identifier {
                             Identifiers::Identifier(name) => Some(name),
@@ -117,36 +116,55 @@ impl<'a> Parser<'a> {
 
                 let name = option_name.unwrap();
 
-                if self.current_token().kind != TokenType::Operator(Operators::Assignment) {
-                    return Err(String::from("Plase Declare the variable"));
-                }
+                let end_pos;
 
-                let value = self.current_token();
+                let value : Option<Expression> = match self.next_token().kind {
+                    TokenType::Operator(operator) => {
+                        if operator == Operators::Assignment {
+                            let value = self.next_token();
 
-                let option_value : Option<Expression> = match value.kind {
-                    TokenType::Identifiers(identifier) => {
-                        match identifier {
-                            Identifiers::StringLiteral(string_val) => Some(Expression::Literal(Literal::String(string_val))),
-                            Identifiers::NumberLiteral(num_val) => Some(Expression::Literal(Literal::Number(num_val))),
-                            _ => None
+                            let option_value : Option<Expression> = match value.kind {
+                                TokenType::Identifiers(identifier) => {
+                                    match identifier {
+                                        Identifiers::StringLiteral(string_val) => Some(Expression::Literal(Literal::String(string_val))),
+                                        Identifiers::NumberLiteral(num_val) => Some(Expression::Literal(Literal::Number(num_val))),
+                                        _ => None
+                                    }
+                                },
+                                _ => None
+                            };
+
+                            if option_value.is_none() {
+                                return Err(String::from("Please Provide a valid value"));
+                            }
+
+                            let value = option_value.unwrap();
+
+                            let semicolon_token = self.next_token();
+
+                            if semicolon_token.kind != TokenType::Semicolon {
+                                println!("Expected Semicolon after declaring var");
+                            }
+
+                            end_pos = semicolon_token.end_pos;
+                
+                            Some(value)
+                        } else {
+                            return Err(String::from("Invalid identifier found"));
                         }
                     },
-                    _ => None
+                   TokenType::Semicolon => {
+                        end_pos = self.current_token().end_pos;
+
+                        None
+                    },
+                    _ => {
+                        return Err(String::from("Invalid identifier found"));
+                    }
                 };
 
-                if option_value.is_none() {
-                    return Err(String::from("Please Provide a valid value"));
-                }
-
-                let value = option_value.unwrap();
-
-                let semicolon_token = self.current_token();
-
-                if semicolon_token.kind != TokenType::Semicolon {
-                    println!("Expected Semicolon after declaring var");
-                }
-
-                return Ok(Statement{statement_type : Statements::VariableDeclaration(VariableDeclaration{name, value, variable_type}), end_pos: semicolon_token.end_pos, ..statement_default});
+                
+                return Ok(Statement{statement_type : Statements::VariableDeclaration(VariableDeclaration{name, value, variable_type}), end_pos, ..statement_default});
             },
             _ => {
                 return Err(String::from("Syntax Error!!!"));
@@ -154,10 +172,16 @@ impl<'a> Parser<'a> {
         };
     }
 
-    pub fn current_token(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Token {
         let tkn = self.input.get(self.position).unwrap().clone(); 
         
         self.position += 1;
+        
+        return tkn;
+    }
+
+    pub fn current_token(&mut self) -> Token {
+        let tkn = self.input.get(self.position).unwrap().clone(); 
         
         return tkn;
     }

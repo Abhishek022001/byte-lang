@@ -1,6 +1,6 @@
-use std::{cell::RefCell, collections::HashMap, hash::Hash, rc::Rc};
+use std::{cell::{Ref, RefCell}, clone, collections::HashMap, hash::Hash, rc::Rc, thread::current};
 
-use crate::datatypes::{StackFrame, SymbolType};
+use crate::datatypes::{StackFrame, StackVariable, SymbolType};
 
 use super::{Statements, DeclareVariableType, Expression, Literal, Token, Statement, Symbol};
 
@@ -58,13 +58,19 @@ impl<'a> SemanticAnaytis<'a> {
 
         match statement.statement_type.clone() {
             Statements::VariableDeclaration(var) => {
-                if((var.variable_type == DeclareVariableType::String && matches!(var.value, Expression::Literal(Literal::String(_))))
-                    ||
-                    (var.variable_type == DeclareVariableType::Number && matches!(var.value, Expression::Literal(Literal::Number(_))))) == false {
-                    return Err(String::from(format!("Invalid Variable Declaration at line {} and col {}: {:?}", statement.line, statement.col, self.untokenized_input.get(statement.start_pos..statement.end_pos).unwrap()))); 
+                if let Some(var_value) = var.value {
+                    let init_valid = match (var.variable_type.clone(), var_value) {
+                        (DeclareVariableType::I8  | DeclareVariableType::I16 | DeclareVariableType::I32,
+                        Expression::Literal(Literal::Number(_))) => true,
+                        _ => false
+                    };
+
+                    if !init_valid {
+                        return Err(String::from(format!("Invalid Variable Declaration at line {} and col {}: {:?}", statement.line, statement.col, self.untokenized_input.get(statement.start_pos..statement.end_pos).unwrap()))); 
+                    }
                 }
 
-                self.add_symbol(Symbol{symbol_type: SymbolType::Variable}, var.name);
+                self.add_stack_variable(var.variable_type, var.name);
             },
             Statements::EOF => {
                 return Ok(statement.clone());
@@ -77,11 +83,38 @@ impl<'a> SemanticAnaytis<'a> {
         return Ok(statement.clone());
     }
 
-    pub fn add_symbol(&mut self, symbol : Symbol, symbol_name : String) {
-        if self.symbol_table.get(&symbol_name).is_some() {
-            panic!("Already defined symbol with the name: {:?}", symbol_name);
+    pub fn find_var_in_stack(&self, name: &str) -> Option<StackVariable> {
+        let mut current = Rc::clone(&self.current_stack_frame);
+
+        loop {
+            {
+                let current_borrow = current.borrow();
+
+                if let Some(variable) = current_borrow.variables.get(name) {
+                    return Some(variable.clone());
+                }
+            }
+
+            let parent = current.borrow().parent.clone();
+
+            if let Some(p) = parent {
+                current = Rc::clone(&p);
+
+                continue;
+            }
+
+            return None;
+        }
+    }
+
+    pub fn add_stack_variable(&mut self, variable_type : DeclareVariableType, name: String) -> () {
+        let found_variable = self.find_var_in_stack(name.as_str());
+        if let Some(_) = found_variable {
+            panic!("Already defined symbol with the name: {:?}", name);
+        } else {
+            self.current_stack_frame.borrow_mut().variables.insert(name, variable);
         }
 
-        self.symbol_table.insert(symbol_name, symbol);
+        return;
     }
 }

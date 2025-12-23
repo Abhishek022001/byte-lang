@@ -23,6 +23,7 @@ pub mod code_generator;
 pub mod semantic_analysis;
 pub mod static_data;
 pub mod symbol_table;
+pub mod scope_analysis;
 
 pub use {
     data_string::DataString,
@@ -40,7 +41,6 @@ pub use {
     function_struct::FunctionStruct,
     data_boolean::DataBoolean,
     token::Keywords,
-    stack_frame::StackItem,
     stack_frame::StackFrame,
     stack_frame::StackVariable,
     parser::Parser,
@@ -59,10 +59,12 @@ pub use {
     ast_statements::Literal,
     ast_statements::Expression,
     ast_statements::VariableDeclaration,
+    ast_statements::get_variable_size_by_type,
     semantic_analysis::SemanticAnaytis,
     code_generator::CodeGenerator,
     static_data::StaticData,
     ast_statements::BuildInFunctionsAst,
     symbol_table::Symbol,
-    symbol_table::SymbolType
+    symbol_table::SymbolType,
+    scope_analysis::ScopeAnalysis
 };

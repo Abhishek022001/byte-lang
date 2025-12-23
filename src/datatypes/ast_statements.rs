@@ -24,7 +24,7 @@ pub enum BuildInFunctionsAst {
 pub struct VariableDeclaration {
     pub name: String,
     pub variable_type: DeclareVariableType,
-    pub value: Expression,
+    pub value: Option<Expression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -40,6 +40,20 @@ pub enum Literal {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum DeclareVariableType {
-    String,
-    Number
+    I8,
+    I16,
+    I32
+}
+
+pub fn get_variable_size_by_type(variable_type : DeclareVariableType) -> u32 {
+    return match variable_type {
+        DeclareVariableType::I8 => 1,
+        DeclareVariableType::I16 => 2,
+        DeclareVariableType::I32 => 3
+    }
+}
+
+// Code gen specific Structs
+#[derive(Debug, PartialEq, Clone)]
+pub struct CgStatement {
 }

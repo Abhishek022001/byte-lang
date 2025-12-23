@@ -1,3 +1,5 @@
+use crate::datatypes::DeclareVariableType;
+
 use super::{Token, Identifiers, TokenType, Keywords, BuildInFunctions, BuildInCommand, Operators, Punctuations};
 
 // Tokenzer struct
@@ -112,11 +114,15 @@ impl<'a> Tokenizer<'a> {
             "," => {
                 return Some(Token{kind: TokenType::Punctuation(Punctuations::Comma), ..token_default})
             },
-            "string" => {
-                return Some(Token{kind: TokenType::Keyword(Keywords::StringType), ..token_default})
-            },
-            "number" => {
-                return Some(Token{kind: TokenType::Keyword(Keywords::NumberType), ..token_default})
+            "i32" | "i16" | "i8" => {
+                return Some(Token{kind: TokenType::Keyword(Keywords::VariableType(
+                    match &res as &str {
+                        "i32" => DeclareVariableType::I32,
+                        "i16" => DeclareVariableType::I16,
+                        "i8" => DeclareVariableType::I8,
+                        _ => unreachable!()
+                    }
+                )), ..token_default})
             },
             "compare" => {
                 return Some(Token{kind: TokenType::BuildInFunctions(BuildInFunctions::Compare), ..token_default})

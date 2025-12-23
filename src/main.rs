@@ -11,6 +11,8 @@ mod datatypes;
 use compile_asm::compile_asm;
 use datatypes::parser::{parse_code};
 
+use crate::datatypes::{ScopeAnalysis, SemanticAnaytis};
+
 fn main() {
     let start = std::time::Instant::now();
 
@@ -201,6 +203,8 @@ _start:
 "#
     )
     .expect("Error Writing File");
+
+    let analysis = ScopeAnalysis::new();
 
     let parsed_text = parse_code(
         &content as &str,
