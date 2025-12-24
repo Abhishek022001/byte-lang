@@ -1,8 +1,6 @@
 use std::{collections::HashMap, vec};
 
-use crate::datatypes::{SemanticAnaytis, StackFrame, StackVariable, Statement, Statements, VariableDeclaration, ast_statements::{CgStatement, CgStatementType, CgVariableInitialization}};
-
-pub struct 
+use crate::datatypes::{ast_statements::{CgStatement, CgStatementType, CgVariableInitialization, Statement, Statements, VariableDeclaration}, stack_frame::{StackFrame, StackVariable}};
 
 pub struct ScopeAnalysis<'a> {
     source_code : &'a str,
@@ -17,7 +15,7 @@ impl<'a> ScopeAnalysis<'a> {
         return Self{source_code, statements, position : 0, stack_frames: Vec::new(), scope_stack: Vec::new()};
     }
 
-    pub fn process_all(&mut self) -> StackFrame {
+    pub fn process_all(&mut self) -> Vec<StackFrame> {
         self.stack_frames.push(StackFrame::default());
         self.scope_stack.push(0);
 

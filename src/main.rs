@@ -15,6 +15,8 @@ use datatypes::parser::Parser;
 use datatypes::scope_analysis::ScopeAnalysis;
 use datatypes::code_generator::CodeGenerator;
 
+use crate::datatypes::{code_generator, semantic_analysis};
+
 fn main() {
     let start = std::time::Instant::now();
 
@@ -213,7 +215,13 @@ _start:
     let statements = parser.parse_all();
 
     let mut scope_analysis = ScopeAnalysis::new(&content, &statements);
+    let stack_frames = scope_analysis.process_all();
 
+    let mut semantic_analysis = SemanticAnaytis::new(&content, &stack_frames);
+    semantic_analysis.process_stack_frame_and_children(0);
+
+    //let mut code_generator = CodeGenerator::new();
+    
     unimplemented!();
 
     match parsed_text {
