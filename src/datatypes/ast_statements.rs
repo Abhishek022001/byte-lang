@@ -45,15 +45,32 @@ pub enum DeclareVariableType {
     I32
 }
 
-pub fn get_variable_size_by_type(variable_type : DeclareVariableType) -> u32 {
-    return match variable_type {
-        DeclareVariableType::I8 => 1,
-        DeclareVariableType::I16 => 2,
-        DeclareVariableType::I32 => 3
+impl DeclareVariableType {
+    #[inline]
+    pub fn get_variable_size(&self) -> usize {
+        return match self {
+            DeclareVariableType::I8 => 1,
+            DeclareVariableType::I16 => 2,
+            DeclareVariableType::I32 => 4
+        }
     }
+
 }
 
 // Code gen specific Structs
 #[derive(Debug, PartialEq, Clone)]
 pub struct CgStatement {
+    pub statement_type : CgStatementType
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum CgStatementType {
+    VariableInitialization(CgVariableInitialization),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct CgVariableInitialization {
+    pub init_value : Expression,
+    pub var_name : String,
+    pub stack_frame : usize
 }

@@ -40,30 +40,10 @@ pub enum TokenType {
     Punctuation(Punctuations),
     BuildInFunctions(BuildInFunctions),
     Identifiers(Identifiers)
-    /*PrintVariable(String),
-    PrintlnVariable(String),
-    PrintString(PrintString),
-    EOF,
-    Error(String),
-    String(DataString),
-    Comment,
-    PrintlnString(PrintString),
-    WaitNumber(f64),
-    Loop(LoopToken),
-    Number(DataNumber),
-    Compare(Compare),
-    Terminate(),
-    Function(FunctionStruct),
-    CallFunction(CallFunction),
-    DataBoolean(DataBoolean),
-    Import(String),
-    Asm(String),
-    */
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum BuildInFunctions {
-    Println,
     Loop,
     Compare
 }

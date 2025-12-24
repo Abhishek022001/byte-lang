@@ -1,5 +1,3 @@
-use crate::datatypes::DeclareVariableType;
-
 use super::{Token, Identifiers, TokenType, Keywords, BuildInFunctions, BuildInCommand, Operators, Punctuations};
 
 // Tokenzer struct

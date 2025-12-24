@@ -1,7 +1,12 @@
 use std::collections::HashMap;
 use std::{fs::File, io::Read};
 
-use super::{CompareType, FunctionStruct, Punctuations, CodeGenerator, Statement, SemanticAnaytis, BuildInCommand, TokenType, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber, ArgType, FunctionArg, ValueType, Statements, Identifiers, Literal, VariableDeclaration, BuildInFunctionsAst, Expression, DeclareVariableType, BuildInFunctions, Keywords, Operators};
+use crate::datatypes::ast_statements::{DeclareVariableType, Expression, Literal, Statement, Statements, VariableDeclaration};
+use crate::datatypes::code_generator::CodeGenerator;
+use crate::datatypes::semantic_analysis::SemanticAnaytis;
+use crate::datatypes::stack_frame::StackFrame;
+use crate::datatypes::token::{BuildInCommand, BuildInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType};
+use crate::datatypes::tokenizer::Tokenizer;
 
 pub struct Parser<'a> {
     input: &'a Vec<Token>,
@@ -59,37 +64,6 @@ impl<'a> Parser<'a> {
             },
             TokenType::BuildInFunctions(func) => {
                 match func {
-                    BuildInFunctions::Println => {
-                        if self.next_token().kind != TokenType::Punctuation(Punctuations::OpenParenthesis) {
-                            return Err(String::new());
-                        };
-
-                        let string_val : String = match self.next_token().kind {
-                            TokenType::Identifiers(identifier) => {
-                                match identifier {
-                                    Identifiers::StringLiteral(str) => str,
-                                    _ => {
-                                        return Err(String::new());
-                                    }
-                                }
-                            },
-                            _ => {
-                                return Err(String::new());
-                            }
-                        };
-    
-                        if self.next_token().kind != TokenType::Punctuation(Punctuations::ClosedParenthesis) {
-                            return Err(String::new());
-                        };
-
-                        let semicolon = self.next_token();
-
-                        if semicolon.kind != TokenType::Semicolon {
-                            return Err(String::new());
-                        };
-
-                        return Ok(Statement{statement_type: Statements::BuildInFunctions(BuildInFunctionsAst::Println(string_val)), end_pos: semicolon.end_pos, ..statement_default})
-                    },
                     _ => ()
                };  
 
@@ -794,34 +768,4 @@ pub fn parse_code(
     }
     */
     return Ok(res);
-}
-
-pub fn get_offset(stack : Vec<StackFrame>) -> u32 {
-    let last_stack = stack.last().expect("error getting stack");
-
-    let mut biggest_offset = 0;
-
-    for item in last_stack.stack_items.values() {
-        if item.offset >= biggest_offset {
-            biggest_offset = item.offset + item.size;
-        }
-    }
-
-    if biggest_offset == 0 {
-        if stack.len() >= 2 {
-            for frame in stack.iter() {
-                for item in frame.stack_items.values() {
-                    if item.offset > biggest_offset {
-                        biggest_offset = item.offset + item.size;
-                    }
-                }
-            }
-
-            return biggest_offset;
-        } else {
-            return 0;
-        }
-    } else {
-        return biggest_offset;
-    }
 }

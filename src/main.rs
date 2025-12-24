@@ -9,9 +9,11 @@ mod compile_asm;
 mod datatypes;
 
 use compile_asm::compile_asm;
-use datatypes::parser::{parse_code};
-
-use crate::datatypes::{ScopeAnalysis, SemanticAnaytis};
+use datatypes::semantic_analysis::SemanticAnaytis;
+use datatypes::tokenizer::Tokenizer;
+use datatypes::parser::Parser;
+use datatypes::scope_analysis::ScopeAnalysis;
+use datatypes::code_generator::CodeGenerator;
 
 fn main() {
     let start = std::time::Instant::now();
@@ -204,11 +206,15 @@ _start:
     )
     .expect("Error Writing File");
 
-    let analysis = ScopeAnalysis::new();
+    let mut tokenizer = Tokenizer::new(&content);
+    let tokens = tokenizer.tokenize_all();
 
-    let parsed_text = parse_code(
-        &content as &str,
-    );
+    let mut parser = Parser::new(&tokens);
+    let statements = parser.parse_all();
+
+    let mut scope_analysis = ScopeAnalysis::new(&content, &statements);
+
+    unimplemented!();
 
     match parsed_text {
         Ok(text) => write!(writer, "{}", text).expect("error writing to a file"),
