@@ -2,8 +2,4 @@
 Root file
 //
 
-number test = 0;
-
-println("hello world");
-
-term;
+i32 test = 0;

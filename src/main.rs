@@ -220,17 +220,10 @@ _start:
     let mut semantic_analysis = SemanticAnaytis::new(&content, &stack_frames);
     semantic_analysis.process_stack_frame_and_children(0);
 
-    //let mut code_generator = CodeGenerator::new();
-    
-    unimplemented!();
+    let mut code_generator = CodeGenerator::new(&stack_frames);
+    let compiled_code = code_generator.process_stack_frame_and_children(0);
 
-    match parsed_text {
-        Ok(text) => write!(writer, "{}", text).expect("error writing to a file"),
-        Err(err) => {
-            println!("{}", err);
-            return;
-        }
-    }
+    write!(writer, "{}", compiled_code).unwrap();
        
     // Save the file with new content.
     writer.flush().expect("Err Flushing To File");

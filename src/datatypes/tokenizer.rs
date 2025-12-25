@@ -1,4 +1,4 @@
-use super::{Token, Identifiers, TokenType, Keywords, BuildInFunctions, BuildInCommand, Operators, Punctuations};
+use crate::datatypes::{ast_statements::DeclareVariableType, token::{BuildInCommand, BuildInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType}};
 
 // Tokenzer struct
 pub struct Tokenizer<'a> {
@@ -124,9 +124,6 @@ impl<'a> Tokenizer<'a> {
             },
             "compare" => {
                 return Some(Token{kind: TokenType::BuildInFunctions(BuildInFunctions::Compare), ..token_default})
-            },
-            "println" => {
-                return Some(Token{kind: TokenType::BuildInFunctions(BuildInFunctions::Println), ..token_default})
             },
             "loop" => {
                 return Some(Token{kind: TokenType::BuildInFunctions(BuildInFunctions::Loop), ..token_default})

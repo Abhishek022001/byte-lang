@@ -39,7 +39,7 @@ impl<'a> ScopeAnalysis<'a> {
             self.advance_position();
         }
 
-        unimplemented!();
+        return self.stack_frames.clone();
     }
 
     pub fn create_new_scope(&mut self) -> () {

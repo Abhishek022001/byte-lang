@@ -3,3 +3,4 @@
 .text
 _start:
 
+mov x0 #10

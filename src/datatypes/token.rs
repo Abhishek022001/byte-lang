@@ -1,13 +1,4 @@
-use crate::datatypes::DeclareVariableType;
-
-use super::print_string::PrintString;
-use super::data_string::DataString;
-use super::data_number::DataNumber;
-use super::compare::Compare;
-use super::loop_token::LoopToken;
-use super::function_struct::FunctionStruct;
-use super::data_boolean::DataBoolean;
-use super::call_function::CallFunction;
+use crate::datatypes::ast_statements::DeclareVariableType;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
