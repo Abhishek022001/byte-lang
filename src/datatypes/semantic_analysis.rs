@@ -1,6 +1,6 @@
 use std::{cell::{Ref, RefCell}, clone, collections::HashMap, hash::Hash, rc::Rc, thread::current};
 
-use crate::datatypes::{ast_statements::{CgStatement, CgStatementType, DeclareVariableType, Expression, Literal}, stack_frame::StackFrame};
+use crate::datatypes::{ast_statements::{CgStatement, CgStatementType, VariableType, Expression, Literal}, stack_frame::StackFrame};
 
 pub struct SemanticAnaytis<'a> {
     untokenized_input: &'a str,
@@ -22,7 +22,7 @@ impl<'a> SemanticAnaytis<'a> {
                 let var_in_stack_frame = var_stack_frame.variables.get(&var_init.var_name).unwrap();
 
                 let init_valid = match (var_in_stack_frame.variable_type.clone(), var_init.init_value) {
-                    (DeclareVariableType::I8  | DeclareVariableType::I16 | DeclareVariableType::I32,
+                    (VariableType::I8  | VariableType::I16 | VariableType::I32,
                     Expression::Literal(Literal::Number(_))) => true,
                     _ => false
                 };

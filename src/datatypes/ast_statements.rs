@@ -1,3 +1,5 @@
+use crate::datatypes::token::Token;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Statement {
     pub col: usize,
@@ -5,6 +7,19 @@ pub struct Statement {
     pub start_pos: usize,
     pub end_pos: usize,
     pub statement_type: Statements
+}
+
+impl Statement {
+    #[inline]
+    pub fn new(token: &Token, end_pos: usize, statement_type: Statements) -> Self {
+        Self {
+            col: token.col,
+            line: token.line,
+            start_pos: token.start_pos,
+            end_pos,
+            statement_type,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -23,7 +38,7 @@ pub enum BuildInFunctionsAst {
 #[derive(Debug, PartialEq, Clone)]
 pub struct VariableDeclaration {
     pub name: String,
-    pub variable_type: DeclareVariableType,
+    pub variable_type: VariableType,
     pub value: Option<Expression>,
 }
 
@@ -39,19 +54,21 @@ pub enum Literal {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum DeclareVariableType {
+pub enum VariableType {
     I8,
     I16,
-    I32
+    I32,
+    Void
 }
 
-impl DeclareVariableType {
+impl VariableType {
     #[inline]
     pub fn get_variable_size(&self) -> usize {
         return match self {
-            DeclareVariableType::I8 => 1,
-            DeclareVariableType::I16 => 2,
-            DeclareVariableType::I32 => 4
+            VariableType::I8 => 1,
+            VariableType::I16 => 2,
+            VariableType::I32 => 4,
+            VariableType::Void => 0
         }
     }
 

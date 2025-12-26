@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::datatypes::ast_statements::{CgStatement, DeclareVariableType};
+use crate::datatypes::ast_statements::{CgStatement, VariableType};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct StackVariable {
-    pub variable_type : DeclareVariableType,
+    pub variable_type : VariableType,
     pub variable_size : usize, 
     pub offset : usize
 }

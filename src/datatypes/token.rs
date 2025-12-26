@@ -1,4 +1,4 @@
-use crate::datatypes::ast_statements::DeclareVariableType;
+use crate::datatypes::ast_statements::VariableType;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
@@ -11,7 +11,7 @@ pub struct Token {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Keywords {
-    VariableType(DeclareVariableType)
+    VariableType(VariableType)
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -41,6 +41,7 @@ pub enum BuildInFunctions {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Punctuations {
+    Colon,
     OpenParenthesis,
     ClosedParenthesis,
     Comma

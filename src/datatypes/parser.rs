@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::{fs::File, io::Read};
 
-use crate::datatypes::ast_statements::{DeclareVariableType, Expression, Literal, Statement, Statements, VariableDeclaration};
+use crate::datatypes::ast_statements::{VariableType, Expression, Literal, Statement, Statements, VariableDeclaration};
 use crate::datatypes::code_generator::CodeGenerator;
 use crate::datatypes::semantic_analysis::SemanticAnaytis;
 use crate::datatypes::stack_frame::StackFrame;
@@ -30,8 +30,7 @@ impl<'a> Parser<'a> {
                     }
                 },
                 Err(err) => {
-                    println!("{}", err);
-                    break;
+                    panic!("{}", err);
                 },
             };
         }
@@ -39,28 +38,92 @@ impl<'a> Parser<'a> {
         return statements;
     }
 
+    pub fn parse_function_declaration(&mut self, first_token : &Token, func_return_type : VariableType) -> Result<Statement, String> {
+        let func_name_tkn = self.next_token();
+
+        let func_name: String = match &func_name_tkn.kind {
+            TokenType::Identifiers(Identifiers::Identifier(name)) => name.clone(),
+            _ => String::new(),
+        };
+
+        if func_name.is_empty() {
+            return Err("Parsing func name failed".to_string());
+        }
+
+
+
+        unimplemented!();
+    }
+
+    pub fn parse_variable_declaration(&mut self, first_token : &Token, var_type : VariableType, var_name : &String) -> Result<Statement, String> {
+        if var_type == VariableType::Void {
+            return Err("Can't declare variable as void".to_string());
+        }
+
+        let end_pos;
+
+        let value : Option<Expression> = match self.next_token().kind {
+            TokenType::Operator(operator) => {
+                if operator == Operators::Assignment {
+                    let value = self.next_token();
+
+                    let option_value : Option<Expression> = match value.kind {
+                        TokenType::Identifiers(identifier) => {
+                            match identifier {
+                                Identifiers::StringLiteral(string_val) => Some(Expression::Literal(Literal::String(string_val))),
+                                Identifiers::NumberLiteral(num_val) => Some(Expression::Literal(Literal::Number(num_val))),
+                                _ => None
+                            }
+                        },
+                        _ => None
+                    };
+
+                    if option_value.is_none() {
+                        return Err(String::from("Please Provide a valid value"));
+                    }
+
+                    let value = option_value.unwrap();
+
+                    let semicolon_token = self.next_token();
+
+                    if semicolon_token.kind != TokenType::Semicolon {
+                        println!("Expected Semicolon after declaring var");
+                    }
+
+                    end_pos = semicolon_token.end_pos;
+        
+                    Some(value)
+                } else {
+                    return Err(String::from("Invalid identifier found"));
+                }
+            },
+           TokenType::Semicolon => {
+                end_pos = self.current_token().end_pos;
+
+                None
+            },
+            _ => {
+                return Err(String::from("Invalid identifier found"));
+            }
+        };
+
+        
+        return Ok(Statement::new(&first_token, end_pos, Statements::VariableDeclaration(VariableDeclaration{name: var_name.clone(), value, variable_type: var_type})));
+    }
+
     pub fn parse_next(&mut self) -> Result<Statement, String> {
         let token = self.next_token();
 
-        println!("{:?}", token.kind);
-
-        let statement_default : Statement = Statement{col: token.col, line: token.line, end_pos: 0, start_pos: token.start_pos, statement_type: Statements::Terminate};
-
-        match token.kind {
+        match token.kind.clone() {
             TokenType::EOF => {
-                return Ok(Statement{statement_type: Statements::EOF, end_pos: token.end_pos, ..statement_default});
+                return Ok(Statement::new(&token, token.end_pos, Statements::EOF));
             },
             TokenType::BuildInCommand(command) => {
                 match command {
-                    BuildInCommand::Terminate => {
-                        let semicolon_token = self.next_token();
-                        if semicolon_token.kind != TokenType::Semicolon {
-                            return Err(String::from("Expected Semicolon after Terminate"));
-                        };
-
-                        return Ok(Statement{statement_type: Statements::Terminate, end_pos: semicolon_token.end_pos, ..statement_default});
-                    }
+                    _ => {}
                 };
+
+                return Err(String::new());
             },
             TokenType::BuildInFunctions(func) => {
                 match func {
@@ -70,80 +133,43 @@ impl<'a> Parser<'a> {
                 return Err(String::new());
             },
             TokenType::Keyword(keyword) => {
-                let variable_type : DeclareVariableType = match keyword {
-                    Keywords::VariableType(var_type) => var_type
-                };
-
-                let option_name : Option<String> = match self.next_token().kind {
-                    TokenType::Identifiers(identifier) => {
-                        match identifier {
-                            Identifiers::Identifier(name) => Some(name),
-                            _ => None
-                        }
-                    },
-                    _ => None
-                };
-
-                if option_name.is_none() {
-                    return Err(String::from("Invalid Var Name"));
-                };
-
-                let name = option_name.unwrap();
-
-                let end_pos;
-
-                let value : Option<Expression> = match self.next_token().kind {
-                    TokenType::Operator(operator) => {
-                        if operator == Operators::Assignment {
-                            let value = self.next_token();
-
-                            let option_value : Option<Expression> = match value.kind {
-                                TokenType::Identifiers(identifier) => {
-                                    match identifier {
-                                        Identifiers::StringLiteral(string_val) => Some(Expression::Literal(Literal::String(string_val))),
-                                        Identifiers::NumberLiteral(num_val) => Some(Expression::Literal(Literal::Number(num_val))),
-                                        _ => None
+                match keyword {
+                    Keywords::VariableType(var_type) => {
+                        match self.next_token().kind {
+                            TokenType::Punctuation(punctuation) => {
+                                match punctuation {
+                                    Punctuations::Colon => {
+                                        return self.parse_function_declaration(&token, var_type);
+                                        // Handle func decl
+                                    },
+                                    _ => {
+                                        return Err(String::from("Unknown Punctuation\n"));
                                     }
-                                },
-                                _ => None
-                            };
-
-                            if option_value.is_none() {
-                                return Err(String::from("Please Provide a valid value"));
+                                }
+                            },
+                            TokenType::Identifiers(identifier) => {
+                                match identifier {
+                                    Identifiers::Identifier(var_name) => {
+                                        return self.parse_variable_declaration(&token, var_type, &var_name);
+                                    },
+                                    _ => {
+                                        return Err(String::from("Unknown Identifier\n"));
+                                    }
+                                }
                             }
-
-                            let value = option_value.unwrap();
-
-                            let semicolon_token = self.next_token();
-
-                            if semicolon_token.kind != TokenType::Semicolon {
-                                println!("Expected Semicolon after declaring var");
+                            _ => {
+                                return Err(String::from("Unknown Token Type\n"));
                             }
-
-                            end_pos = semicolon_token.end_pos;
-                
-                            Some(value)
-                        } else {
-                            return Err(String::from("Invalid identifier found"));
                         }
-                    },
-                   TokenType::Semicolon => {
-                        end_pos = self.current_token().end_pos;
-
-                        None
-                    },
-                    _ => {
-                        return Err(String::from("Invalid identifier found"));
                     }
-                };
-
-                
-                return Ok(Statement{statement_type : Statements::VariableDeclaration(VariableDeclaration{name, value, variable_type}), end_pos, ..statement_default});
+                }
             },
             _ => {
                 return Err(String::from("Syntax Error!!!"));
             }
         };
+
+        //return Err(String::from("Syntax Error"));
     }
 
     pub fn next_token(&mut self) -> Token {

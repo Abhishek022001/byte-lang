@@ -1,4 +1,4 @@
-use crate::datatypes::{ast_statements::DeclareVariableType, token::{BuildInCommand, BuildInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType}};
+use crate::datatypes::{ast_statements::VariableType, token::{BuildInCommand, BuildInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType}};
 
 // Tokenzer struct
 pub struct Tokenizer<'a> {
@@ -44,7 +44,7 @@ impl<'a> Tokenizer<'a> {
         let start_pos = self.position;
 
         match self.current_char() {
-            '\n' | ';' | '(' | ')' | ',' => {
+            '\n' | ';' | '(' | ')' | ',' | ':' => {
                 res = String::from(self.current_char());
                 self.advance(1);
             },
@@ -100,6 +100,9 @@ impl<'a> Tokenizer<'a> {
             ";" => {
                 return Some(Token{kind: TokenType::Semicolon, ..token_default});
             },
+            ":" => {
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::Colon), ..token_default})
+            }
             "=" => {
                 return Some(Token{kind: TokenType::Operator(Operators::Assignment), ..token_default});
             },
@@ -112,12 +115,13 @@ impl<'a> Tokenizer<'a> {
             "," => {
                 return Some(Token{kind: TokenType::Punctuation(Punctuations::Comma), ..token_default})
             },
-            "i32" | "i16" | "i8" => {
+            "i32" | "i16" | "i8" | "void" => {
                 return Some(Token{kind: TokenType::Keyword(Keywords::VariableType(
                     match &res as &str {
-                        "i32" => DeclareVariableType::I32,
-                        "i16" => DeclareVariableType::I16,
-                        "i8" => DeclareVariableType::I8,
+                        "i32" => VariableType::I32,
+                        "i16" => VariableType::I16,
+                        "i8" => VariableType::I8,
+                        "void" => VariableType::Void,
                         _ => unreachable!()
                     }
                 )), ..token_default})

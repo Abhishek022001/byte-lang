@@ -2,4 +2,14 @@
 Root file
 //
 
-i32 test = 0;
+() : term(i32 num) {
+    asm!{
+        mov x0, {}
+        mov x16, #0x2000001,
+        svc #0x80
+    (num)}
+}
+
+() : main() {
+    i32 test = 0;
+}

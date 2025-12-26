@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::datatypes::{ast_statements::{CgStatement, CgStatementType, Expression, Statement, Statements}, stack_frame::StackFrame};
+use crate::datatypes::{ast_statements::{CgStatement, CgStatementType, Expression, Literal, Statement, Statements}, stack_frame::StackFrame};
 
 pub struct CodeGenerator<'a> {
     stack_frames: &'a Vec<StackFrame>,
@@ -13,16 +13,40 @@ impl<'a> CodeGenerator<'a> {
     pub fn generate_statement(&mut self, statement : &CgStatement) -> Result<String, String> {
         match statement.statement_type.clone() {
             CgStatementType::VariableInitialization(var_init) => {
-                return Ok(format!("mov x0 #10"));
-            },
-            _ => ()
-        };
+                let stack_frame_borrow = self.get_stack_frame_by_index(var_init.stack_frame);
 
-        return Err("Something".to_string());
+                let offset = stack_frame_borrow.variables.get(&var_init.var_name).unwrap().offset;
+
+                match var_init.init_value {
+                    Expression::Literal(literal) => {
+                        match literal {
+                            Literal::Number(num_literal) => {
+                                return Ok(format!("mov x10, #{}\nstr x10, [x29, #{}]\n", num_literal, offset));
+                            },
+                            _ => {
+                                return Err("Not supported Literal".to_string());
+                            }
+                        }
+                    },
+                }
+            },
+        };
+    }
+
+    pub fn align_memory(&self, mem : usize, alignment : usize) -> usize {
+        return (mem + (alignment - 1)) & !(alignment - 1)
+    }
+
+    pub fn initialize_stack_frame(&mut self, stack_frame : usize) -> String {
+        let stack_frame_borrow = self.get_stack_frame_by_index(stack_frame);
+
+        return format!("stp x29, x30, [sp, #-16]!\nmov x29, sp\nsub sp, sp, #{}\n", self.align_memory(stack_frame_borrow.stack_mem_allocated, 16));
     }
 
     pub fn process_stack_frame(&mut self, stack_frame : usize) -> String {
         let mut result = String::new();
+
+        result.push_str(&self.initialize_stack_frame(stack_frame));
 
         for statement in self.get_stack_frame_by_index(stack_frame).statements.clone().iter() {
             let analyzed_statement_err = self.generate_statement(statement);

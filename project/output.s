@@ -3,4 +3,8 @@
 .text
 _start:
 
-mov x0 #10
+stp x29, x30, [sp, #-16]!
+mov x29, sp
+sub sp, sp, #16
+mov x10, #60
+str x10, [x29, #0]
