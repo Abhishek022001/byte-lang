@@ -5,13 +5,15 @@ use crate::datatypes::{ast_statements::{CgStatement, CgStatementType, VariableTy
 pub struct SemanticAnaytis<'a> {
     untokenized_input: &'a str,
     stack_frames : &'a Vec<StackFrame>,
+    functions : &'a HashMap<String, usize>
 }
 
 impl<'a> SemanticAnaytis<'a> {
-    pub fn new(untokenized_input: &'a str, stack_frames : &'a Vec<StackFrame>) -> Self {
+    pub fn new(untokenized_input: &'a str, stack_frames : &'a Vec<StackFrame>, functions : &'a HashMap<String, usize>) -> Self {
         Self {
             untokenized_input,
-            stack_frames
+            stack_frames,
+            functions
         }
     }
 
@@ -54,6 +56,12 @@ impl<'a> SemanticAnaytis<'a> {
 
     pub fn process_stack_frame_and_children(&mut self, stack_frame_index : usize) -> () {
         self.traverse_stack_frame_children(stack_frame_index);
+    }
+
+    pub fn process_all_functions(&mut self) -> () {
+        for (function_name, stack_index) in self.functions.clone().iter() {
+            self.process_stack_frame_and_children(stack_index.clone());
+        }
     }
 
     pub fn traverse_stack_frame_children(&mut self, stack_frame_index : usize) -> () {

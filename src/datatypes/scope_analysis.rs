@@ -1,27 +1,57 @@
-use std::{collections::HashMap, vec};
+use std::{collections::HashMap, panic, vec};
 
-use crate::datatypes::{ast_statements::{CgStatement, CgStatementType, CgVariableInitialization, Statement, Statements, VariableDeclaration}, stack_frame::{StackFrame, StackVariable}};
+use crate::datatypes::{ast_statements::{BuiltInFunctionsAst, CgBuiltInFunctions, CgStatement, CgStatementType, CgVariableInitialization, Expression, Literal, Statement, Statements, VariableDeclaration}, stack_frame::{StackFrame, StackVariable}, token::BuiltInFunctions};
 
 pub struct ScopeAnalysis<'a> {
     source_code : &'a str,
     statements : &'a Vec<Statement>,
     position : usize,
+    functions : HashMap<String, usize>,
     stack_frames : Vec<StackFrame>,
     scope_stack : Vec<usize>
 }
 
 impl<'a> ScopeAnalysis<'a> {
     pub fn new(source_code : &'a str, statements : &'a Vec<Statement>) -> Self {
-        return Self{source_code, statements, position : 0, stack_frames: Vec::new(), scope_stack: Vec::new()};
+        return Self{source_code, statements, position : 0, stack_frames: Vec::new(), scope_stack: Vec::new(), functions: HashMap::new()};
     }
 
-    pub fn process_all(&mut self) -> Vec<StackFrame> {
-        self.stack_frames.push(StackFrame::default());
-        self.scope_stack.push(0);
+    pub fn process_all(&mut self) -> (Vec<StackFrame>, HashMap<String, usize>) {
+        let mut current_function = String::new();
+
+        print!("Statements: ");
 
         loop {
-            let current_statement = self.current_statement();
+            let current_statement = self.current_statement().clone();
+
+            print!(" {:?} ", current_statement);
             
+            if current_function.is_empty() {
+                if let Statements::FunctionDeclaration(func_declaration) = current_statement.statement_type.clone() {
+                    if self.functions.get(&func_declaration.name).is_some() {
+                        panic!("Duplicate function: {}", func_declaration.name);
+                    }
+
+                    let stack_frame_index = self.stack_frames.len();
+
+                    self.stack_frames.push(StackFrame::default());
+
+                    self.functions.insert(func_declaration.name.clone(), stack_frame_index);
+
+                    self.scope_stack.push(stack_frame_index);
+
+                    current_function = func_declaration.name;
+
+                    continue;
+                } else if current_statement.statement_type == Statements::EOF {
+                    break;
+                } else {
+                    print!("Scope: {:?}\nCurrent Function: {:?}\nStatement: {:?}\n", self.scope_stack, current_function, current_statement);
+
+                    panic!("Found statement outside function");
+                }
+            }
+
             match current_statement.statement_type.clone() {
                 Statements::VariableDeclaration(var_declaration) => {
                     self.add_var_to_stack_frame(&var_declaration);
@@ -32,6 +62,25 @@ impl<'a> ScopeAnalysis<'a> {
                         });
                     }
                 },
+                Statements::StackFramePop => {
+                    self.pop_scope();
+
+                    if self.scope_stack.len() == 0 {
+                        current_function = String::default();
+                    }
+                },
+                Statements::BuiltInFunctions(func) => {
+                    match func {
+                        BuiltInFunctionsAst::Assembly(asm_expression) => {
+                            let asm_code : String = match asm_expression {
+                                Expression::Literal(Literal::String(asm_code)) => asm_code,
+                                _ => {panic!("Invalid shit given to asm func");}
+                            };
+
+                            self.get_current_stack_frame().statements.push(CgStatement { statement_type: CgStatementType::BuiltInFunction(CgBuiltInFunctions::Assembly(asm_code))});
+                        }
+                    }
+                },
                 Statements::EOF => break,
                 _ => {}
             };
@@ -39,7 +88,9 @@ impl<'a> ScopeAnalysis<'a> {
             self.advance_position();
         }
 
-        return self.stack_frames.clone();
+        print!("\n");
+
+        return (self.stack_frames.clone(), self.functions.clone());
     }
 
     pub fn create_new_scope(&mut self) -> () {

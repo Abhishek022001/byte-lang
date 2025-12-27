@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::{fs::File, io::Read};
 
-use crate::datatypes::ast_statements::{VariableType, Expression, Literal, Statement, Statements, VariableDeclaration};
+use crate::datatypes::ast_statements::{BuiltInFunctionsAst, Expression, FunctionArg, FunctionDeclaration, Literal, Statement, Statements, VariableDeclaration, VariableType};
 use crate::datatypes::code_generator::CodeGenerator;
 use crate::datatypes::semantic_analysis::SemanticAnaytis;
 use crate::datatypes::stack_frame::StackFrame;
-use crate::datatypes::token::{BuildInCommand, BuildInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType};
+use crate::datatypes::token::{BuildInCommand, BuiltInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType};
 use crate::datatypes::tokenizer::Tokenizer;
 
 pub struct Parser<'a> {
@@ -25,6 +25,9 @@ impl<'a> Parser<'a> {
             match self.parse_next() {
                 Ok(statement) => {
                     statements.push(statement.clone());
+
+                    print!("{:?}", statement);
+
                     if statement.statement_type == Statements::EOF {
                         break;
                     }
@@ -39,7 +42,9 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_function_declaration(&mut self, first_token : &Token, func_return_type : VariableType) -> Result<Statement, String> {
-        let func_name_tkn = self.next_token();
+        self.advance_position();
+
+        let func_name_tkn = self.current_token();
 
         let func_name: String = match &func_name_tkn.kind {
             TokenType::Identifiers(Identifiers::Identifier(name)) => name.clone(),
@@ -50,9 +55,33 @@ impl<'a> Parser<'a> {
             return Err("Parsing func name failed".to_string());
         }
 
+        self.advance_position();
 
+        if self.current_token().kind != (TokenType::Punctuation(Punctuations::OpenParenthesis)) {
+            return Err("Expected '('".to_string());
+        }
 
-        unimplemented!();
+        self.advance_position();
+
+        let args : Vec<FunctionArg> = match self.current_token().kind.clone() {
+            TokenType::Punctuation(Punctuations::ClosedParenthesis) => Vec::new(),
+            TokenType::Keyword(Keywords::VariableType(var_type)) => unimplemented!(),
+            _ => return Err("Unknown syntax err".to_string())
+        };
+
+        self.advance_position();
+
+        if self.current_token().kind != (TokenType::Punctuation(Punctuations::OpenBraces)) {
+            return Err("Expected '{' after func decl".to_string());
+        }
+
+        self.advance_position();
+
+        return Ok(Statement::new(first_token, self.current_token().end_pos, Statements::FunctionDeclaration(FunctionDeclaration{
+            args,
+            name : func_name,
+            return_type: func_return_type
+        })));
     }
 
     pub fn parse_variable_declaration(&mut self, first_token : &Token, var_type : VariableType, var_name : &String) -> Result<Statement, String> {
@@ -62,16 +91,20 @@ impl<'a> Parser<'a> {
 
         let end_pos;
 
-        let value : Option<Expression> = match self.next_token().kind {
+        self.advance_position();
+
+        let value : Option<Expression> = match self.current_token().kind {
             TokenType::Operator(operator) => {
                 if operator == Operators::Assignment {
-                    let value = self.next_token();
+                    self.advance_position();
+
+                    let value = self.current_token();
 
                     let option_value : Option<Expression> = match value.kind {
-                        TokenType::Identifiers(identifier) => {
+                        TokenType::Literal(identifier) => {
                             match identifier {
-                                Identifiers::StringLiteral(string_val) => Some(Expression::Literal(Literal::String(string_val))),
-                                Identifiers::NumberLiteral(num_val) => Some(Expression::Literal(Literal::Number(num_val))),
+                                Literal::String(string_val) => Some(Expression::Literal(Literal::String(string_val))),
+                                Literal::Number(num_val) => Some(Expression::Literal(Literal::Number(num_val))),
                                 _ => None
                             }
                         },
@@ -84,11 +117,15 @@ impl<'a> Parser<'a> {
 
                     let value = option_value.unwrap();
 
-                    let semicolon_token = self.next_token();
+                    self.advance_position();
 
-                    if semicolon_token.kind != TokenType::Semicolon {
+                    let semicolon_token = self.current_token();
+
+                    if semicolon_token.kind != TokenType::Punctuation(Punctuations::Semicolon) {
                         println!("Expected Semicolon after declaring var");
                     }
+
+                    self.advance_position();
 
                     end_pos = semicolon_token.end_pos;
         
@@ -97,8 +134,10 @@ impl<'a> Parser<'a> {
                     return Err(String::from("Invalid identifier found"));
                 }
             },
-           TokenType::Semicolon => {
+           TokenType::Punctuation(Punctuations::Semicolon) => {
                 end_pos = self.current_token().end_pos;
+
+                self.advance_position();
 
                 None
             },
@@ -112,7 +151,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_next(&mut self) -> Result<Statement, String> {
-        let token = self.next_token();
+        let token = self.current_token();
 
         match token.kind.clone() {
             TokenType::EOF => {
@@ -125,17 +164,54 @@ impl<'a> Parser<'a> {
 
                 return Err(String::new());
             },
-            TokenType::BuildInFunctions(func) => {
+            TokenType::BuiltInFunctions(func) => {
                 match func {
+                    BuiltInFunctions::Assembly => {
+                        self.advance_position();
+
+                        if self.current_token().kind != TokenType::Punctuation(Punctuations::OpenParenthesis) {
+                            panic!("");
+                        }
+
+                        self.advance_position();
+
+                        let asm_code = match self.current_token().kind {
+                            TokenType::Literal(Literal::String(reg)) => reg,
+                            _ => {panic!("Expected string in asm_code");}
+                        };
+
+                        self.advance_position();
+
+                        if self.current_token().kind != TokenType::Punctuation(Punctuations::ClosedParenthesis) {
+                            panic!("");
+                        }
+                        
+                        self.advance_position();
+
+                        if self.current_token().kind != TokenType::Punctuation(Punctuations::Semicolon) {
+                            panic!("");
+                        }
+
+                        self.advance_position();
+
+                        return Ok(Statement::new(&token, self.current_token().end_pos, Statements::BuiltInFunctions(BuiltInFunctionsAst::Assembly(Expression::Literal(Literal::String(asm_code))))));
+                    },
                     _ => ()
                };  
 
                 return Err(String::new());
             },
+            TokenType::Punctuation(Punctuations::ClosedBraces) => {
+                self.advance_position();
+
+                return Ok(Statement::new(&token, token.end_pos, Statements::StackFramePop))
+            },
             TokenType::Keyword(keyword) => {
                 match keyword {
                     Keywords::VariableType(var_type) => {
-                        match self.next_token().kind {
+                        self.advance_position();
+
+                        match self.current_token().kind {
                             TokenType::Punctuation(punctuation) => {
                                 match punctuation {
                                     Punctuations::Colon => {
@@ -165,19 +241,15 @@ impl<'a> Parser<'a> {
                 }
             },
             _ => {
-                return Err(String::from("Syntax Error!!!"));
+                return Err(format!("Syntax Error!!! {:?}", token.kind));
             }
         };
 
         //return Err(String::from("Syntax Error"));
     }
 
-    pub fn next_token(&mut self) -> Token {
-        let tkn = self.input.get(self.position).unwrap().clone(); 
-        
+    pub fn advance_position(&mut self) -> () {
         self.position += 1;
-        
-        return tkn;
     }
 
     pub fn current_token(&mut self) -> Token {

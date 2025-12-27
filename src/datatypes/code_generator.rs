@@ -1,13 +1,14 @@
 use std::collections::HashMap;
-use crate::datatypes::{ast_statements::{CgStatement, CgStatementType, Expression, Literal, Statement, Statements}, stack_frame::StackFrame};
+use crate::datatypes::{ast_statements::{CgBuiltInFunctions, CgStatement, CgStatementType, Expression, Literal, Statement, Statements}, stack_frame::StackFrame};
 
 pub struct CodeGenerator<'a> {
     stack_frames: &'a Vec<StackFrame>,
+    functions: &'a HashMap<String, usize>
 }
 
 impl<'a> CodeGenerator<'a> {
-    pub fn new(stack_frames : &'a Vec<StackFrame>) -> Self {
-        return Self{stack_frames};
+    pub fn new(stack_frames : &'a Vec<StackFrame>, functions : &'a HashMap<String, usize>) -> Self {
+        return Self{stack_frames, functions};
     }
 
     pub fn generate_statement(&mut self, statement : &CgStatement) -> Result<String, String> {
@@ -30,6 +31,13 @@ impl<'a> CodeGenerator<'a> {
                     },
                 }
             },
+            CgStatementType::BuiltInFunction(built_in_function) => {
+                match built_in_function {
+                    CgBuiltInFunctions::Assembly(assembly_code) => {
+                        return Ok(assembly_code);
+                    }
+                }
+            }
         };
     }
 
@@ -41,6 +49,12 @@ impl<'a> CodeGenerator<'a> {
         let stack_frame_borrow = self.get_stack_frame_by_index(stack_frame);
 
         return format!("stp x29, x30, [sp, #-16]!\nmov x29, sp\nsub sp, sp, #{}\n", self.align_memory(stack_frame_borrow.stack_mem_allocated, 16));
+    }
+
+    pub fn return_stack_frame(&mut self, stack_frame : usize) -> String {
+        let stack_frame_borrow = self.get_stack_frame_by_index(stack_frame);
+
+        return format!("add sp, sp, #{}\nldp x29, x30, [sp], #16\nret\n", self.align_memory(stack_frame_borrow.stack_mem_allocated, 16));
     }
 
     pub fn process_stack_frame(&mut self, stack_frame : usize) -> String {
@@ -59,6 +73,8 @@ impl<'a> CodeGenerator<'a> {
             }
         }
 
+        result.push_str(&self.return_stack_frame(stack_frame));
+
         return result;
     }
 
@@ -66,6 +82,19 @@ impl<'a> CodeGenerator<'a> {
         let compiled_code = self.traverse_stack_frame_children(stack_frame_index);
 
         return compiled_code;
+    }
+
+    pub fn process_all_functions(&mut self) -> String {
+        let mut result = String::new();
+
+        for (function_name, stack_frame) in self.functions {
+            let function_start = format!("_{}:\n", function_name);
+            result.push_str(&function_start);
+
+            result.push_str(&self.process_stack_frame_and_children(stack_frame.clone()));
+        }
+
+        return result;
     }
 
     pub fn traverse_stack_frame_children(&mut self, stack_frame_index : usize) -> String {

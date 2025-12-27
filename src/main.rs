@@ -197,16 +197,7 @@ fn compile_file() {
     //ld -macos_version_min 11.0.0 -o output output.o -lSystem -syslibroot `xcrun -sdk macosx --show-sdk-path` -e _start -arch arm64
 
     // Create _start function.
-    write!(
-        writer,
-        r#".global _start
-.align 2
-.text
-_start:
-
-"#
-    )
-    .expect("Error Writing File");
+    write!(writer, ".global _main\n.align 4\n.text\n").expect("Error Writing File");
 
     let mut tokenizer = Tokenizer::new(&content);
     let tokens = tokenizer.tokenize_all();
@@ -215,13 +206,15 @@ _start:
     let statements = parser.parse_all();
 
     let mut scope_analysis = ScopeAnalysis::new(&content, &statements);
-    let stack_frames = scope_analysis.process_all();
+    let scope_analysis_result = scope_analysis.process_all();
 
-    let mut semantic_analysis = SemanticAnaytis::new(&content, &stack_frames);
-    semantic_analysis.process_stack_frame_and_children(0);
+    print!("Functions: {:?}\nStack Frames: {:?}\n", scope_analysis_result.1, scope_analysis_result.0);
 
-    let mut code_generator = CodeGenerator::new(&stack_frames);
-    let compiled_code = code_generator.process_stack_frame_and_children(0);
+    let mut semantic_analysis = SemanticAnaytis::new(&content, &scope_analysis_result.0, &scope_analysis_result.1);
+    semantic_analysis.process_all_functions();
+
+    let mut code_generator = CodeGenerator::new(&scope_analysis_result.0, &scope_analysis_result.1);
+    let compiled_code = code_generator.process_all_functions();
 
     write!(writer, "{}", compiled_code).unwrap();
        

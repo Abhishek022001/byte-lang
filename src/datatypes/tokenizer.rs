@@ -1,4 +1,4 @@
-use crate::datatypes::{ast_statements::VariableType, token::{BuildInCommand, BuildInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType}};
+use crate::datatypes::{ast_statements::{Literal, VariableType}, token::{BuildInCommand, BuiltInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType}};
 
 // Tokenzer struct
 pub struct Tokenizer<'a> {
@@ -17,13 +17,18 @@ impl<'a> Tokenizer<'a> {
     pub fn tokenize_all(&mut self) -> Vec<Token> {
         let mut res : Vec<Token> = Vec::new();
 
+        print!("Tokens: ");
+
         loop {
             let token = self.next_token();
-            
+
             match token {
                 Some(tkn) => {
+                    print!(" {:?} ", tkn);
+
                     res.push(tkn.clone());
                     if matches!(&tkn.kind, TokenType::EOF) {
+                        print!("\n");
                         return res;
                     }
                 },
@@ -44,7 +49,7 @@ impl<'a> Tokenizer<'a> {
         let start_pos = self.position;
 
         match self.current_char() {
-            '\n' | ';' | '(' | ')' | ',' | ':' => {
+            '\n' | ';' | '(' | ')' | ',' | ':' | '{' | '}' => {
                 res = String::from(self.current_char());
                 self.advance(1);
             },
@@ -77,7 +82,7 @@ impl<'a> Tokenizer<'a> {
 
                 self.advance(1);
 
-                return Some(Token{kind: TokenType::Identifiers(Identifiers::StringLiteral(str)), col: self.col, line: self.line, start_pos, end_pos: self.position});
+                return Some(Token{kind: TokenType::Literal(Literal::String(str)), col: self.col, line: self.line, start_pos, end_pos: self.position});
             },
             _ => {
                 while self.position < self.input.len() && self.current_char().is_whitespace() == false && matches!(self.current_char(), ';' | '(' | ')' | ',') == false {
@@ -94,11 +99,8 @@ impl<'a> Tokenizer<'a> {
                 self.line += 1;
                 self.col = 1;
             },
-            "term" => {
-                return Some(Token{kind: TokenType::BuildInCommand(BuildInCommand::Terminate), ..token_default})
-            },
             ";" => {
-                return Some(Token{kind: TokenType::Semicolon, ..token_default});
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::Semicolon), ..token_default});
             },
             ":" => {
                 return Some(Token{kind: TokenType::Punctuation(Punctuations::Colon), ..token_default})
@@ -106,6 +108,13 @@ impl<'a> Tokenizer<'a> {
             "=" => {
                 return Some(Token{kind: TokenType::Operator(Operators::Assignment), ..token_default});
             },
+            "{" => {
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::OpenBraces), ..token_default})
+            },
+            "}" => {
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::ClosedBraces), ..token_default})
+            },
+
             "(" => {
                 return Some(Token{kind: TokenType::Punctuation(Punctuations::OpenParenthesis), ..token_default})
             },
@@ -115,6 +124,9 @@ impl<'a> Tokenizer<'a> {
             "," => {
                 return Some(Token{kind: TokenType::Punctuation(Punctuations::Comma), ..token_default})
             },
+            "asm" => {
+                return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Assembly), ..token_default})
+            }
             "i32" | "i16" | "i8" | "void" => {
                 return Some(Token{kind: TokenType::Keyword(Keywords::VariableType(
                     match &res as &str {
@@ -127,15 +139,15 @@ impl<'a> Tokenizer<'a> {
                 )), ..token_default})
             },
             "compare" => {
-                return Some(Token{kind: TokenType::BuildInFunctions(BuildInFunctions::Compare), ..token_default})
+                return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Compare), ..token_default})
             },
             "loop" => {
-                return Some(Token{kind: TokenType::BuildInFunctions(BuildInFunctions::Loop), ..token_default})
+                return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Loop), ..token_default})
             },
             _ => {
                 match res.parse::<i32>() {
                     Ok(num) => {
-                        return Some(Token{kind: TokenType::Identifiers(Identifiers::NumberLiteral(num)), ..token_default});
+                        return Some(Token{kind: TokenType::Literal(Literal::Number(num)), ..token_default});
                     },
                     Err(_) => {
                         return Some(Token{kind: TokenType::Identifiers(Identifiers::Identifier(res)), ..token_default});

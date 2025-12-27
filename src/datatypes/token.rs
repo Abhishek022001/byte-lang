@@ -1,4 +1,4 @@
-use crate::datatypes::ast_statements::VariableType;
+use crate::datatypes::ast_statements::{Literal, VariableType};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
@@ -11,13 +11,12 @@ pub struct Token {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Keywords {
-    VariableType(VariableType)
+    VariableType(VariableType),
+    CompileTime
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Identifiers {
-    StringLiteral(String),
-    NumberLiteral(i32),
     Identifier(String)
 }
 
@@ -26,17 +25,19 @@ pub enum TokenType {
     EOF,
     BuildInCommand(BuildInCommand),
     Operator(Operators),
-    Semicolon,
     Keyword(Keywords),
+    Literal(Literal),
     Punctuation(Punctuations),
-    BuildInFunctions(BuildInFunctions),
+    BuiltInFunctions(BuiltInFunctions),
     Identifiers(Identifiers)
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum BuildInFunctions {
+pub enum BuiltInFunctions {
     Loop,
-    Compare
+    Compare,
+    Assembly,
+    Format
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -44,7 +45,10 @@ pub enum Punctuations {
     Colon,
     OpenParenthesis,
     ClosedParenthesis,
-    Comma
+    OpenBraces,
+    ClosedBraces,
+    Comma,
+    Semicolon
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -54,5 +58,4 @@ pub enum Operators {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum BuildInCommand {
-    Terminate
 }

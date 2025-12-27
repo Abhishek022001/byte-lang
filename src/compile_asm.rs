@@ -44,7 +44,7 @@ pub fn compile_asm(current_dir : PathBuf) {
 
     let status = Command::new("ld")
         .arg("-macos_version_min")
-        .arg("11.0.0")
+        .arg("17.0.0")
         .arg("-o")
         .arg("output")
         .arg("output.o")
@@ -52,7 +52,7 @@ pub fn compile_asm(current_dir : PathBuf) {
         .arg("-syslibroot")
         .arg(sdk_path)
         .arg("-e")
-        .arg("_start")
+        .arg("_main")
         .arg("-arch")
         .arg("arm64")
         .status()

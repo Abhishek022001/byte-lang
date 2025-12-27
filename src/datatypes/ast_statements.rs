@@ -9,6 +9,13 @@ pub struct Statement {
     pub statement_type: Statements
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct Function {
+    pub return_type: VariableType,
+    pub args: Vec<FunctionArg>,
+    pub first_stack_frame: usize
+}
+
 impl Statement {
     #[inline]
     pub fn new(token: &Token, end_pos: usize, statement_type: Statements) -> Self {
@@ -23,16 +30,31 @@ impl Statement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct FunctionArg {
+    pub arg_var_type : VariableType,
+    pub arg_name : String
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FunctionDeclaration {
+    pub args : Vec<FunctionArg>,
+    pub name : String,
+    pub return_type : VariableType,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statements {
     Terminate,
     EOF,
     VariableDeclaration(VariableDeclaration),
-    BuildInFunctions(BuildInFunctionsAst),
+    FunctionDeclaration(FunctionDeclaration),
+    StackFramePop,
+    BuiltInFunctions(BuiltInFunctionsAst),
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum BuildInFunctionsAst {
-    Println(String)
+pub enum BuiltInFunctionsAst {
+    Assembly(Expression)
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -83,6 +105,12 @@ pub struct CgStatement {
 #[derive(Debug, PartialEq, Clone)]
 pub enum CgStatementType {
     VariableInitialization(CgVariableInitialization),
+    BuiltInFunction(CgBuiltInFunctions)
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum CgBuiltInFunctions {
+    Assembly(String)
 }
 
 #[derive(Debug, PartialEq, Clone)]
