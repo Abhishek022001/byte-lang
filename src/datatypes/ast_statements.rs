@@ -1,4 +1,4 @@
-use crate::datatypes::token::Token;
+use crate::datatypes::token::{BuiltInFunctions, Identifiers, Token, TokenType};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Statement {
@@ -49,12 +49,92 @@ pub enum Statements {
     VariableDeclaration(VariableDeclaration),
     FunctionDeclaration(FunctionDeclaration),
     StackFramePop,
-    BuiltInFunctions(BuiltInFunctionsAst),
+    Expression(Expression),
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum BuiltInFunctionsAst {
-    Assembly(Expression)
+    Assembly(Box<Expression>),
+    Format(Format),
+    BranchLinked(BranchLinkedAst)
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct BranchLinkedAst {
+    pub args : Vec<Identifiers>,
+    pub function_name : String
+}
+
+impl BuiltInFunctionsAst {
+    pub fn GetReturnType(&self) -> Literal {
+        return match self {
+            BuiltInFunctionsAst::Format(_) => Literal::String(String::new()),
+            BuiltInFunctionsAst::Assembly(_) => Literal::String(String::new()),
+            _ => Literal::String(String::new())
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Format {
+    pub string : String,
+    pub args_provided : Vec<Token>,
+}
+
+impl Format {
+    pub fn parse(&self) -> String {
+        let mut result = String::new();
+
+        let mut position : usize = 0;
+
+        for arg in self.args_provided.clone() {
+            loop {
+                match self.string.chars().nth(position).unwrap() {
+                    '{' => {
+                        let mut type_str = String::new();
+                        
+                        position += 1;
+
+                        loop {
+                            match self.string.chars().nth(position).unwrap() {
+                                '}' => {
+                                    position += 1;
+                                    break;
+                                },
+                                _ => {
+                                    type_str.push(self.string.chars().nth(position).unwrap());
+                                    position += 1;
+                                }
+                            }
+                        }
+
+                        match (type_str.as_str(), arg.kind) {
+                            ("i32", TokenType::Literal(Literal::Number(num))) => {
+                                result.push_str(&num.to_string());
+                            }
+                            _ => {
+                                panic!("Invalid Format");
+                            }
+                        }
+
+                        break;
+                    },
+                    _ => {
+                        result.push(self.string.chars().nth(position).unwrap());
+
+                        position += 1;
+                    }
+                }
+            }
+        }
+
+        while position < self.string.len() {
+            result.push(self.string.chars().nth(position).unwrap());
+            position += 1;
+        }
+
+        return result;
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -67,6 +147,7 @@ pub struct VariableDeclaration {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Literal(Literal),
+    BuiltInFunction(BuiltInFunctionsAst)
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -110,7 +191,13 @@ pub enum CgStatementType {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum CgBuiltInFunctions {
-    Assembly(String)
+    Assembly(String),
+    BranchLinked(CgBranchLinked)
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct CgBranchLinked {
+    pub function_name : String
 }
 
 #[derive(Debug, PartialEq, Clone)]

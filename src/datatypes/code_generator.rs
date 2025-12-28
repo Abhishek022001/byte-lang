@@ -1,14 +1,13 @@
 use std::collections::HashMap;
-use crate::datatypes::{ast_statements::{CgBuiltInFunctions, CgStatement, CgStatementType, Expression, Literal, Statement, Statements}, stack_frame::StackFrame};
+use crate::datatypes::{ast_statements::{CgBuiltInFunctions, CgStatement, CgStatementType, Expression, Literal, Statement, Statements}, program_data::ProgramData, stack_frame::StackFrame};
 
 pub struct CodeGenerator<'a> {
-    stack_frames: &'a Vec<StackFrame>,
-    functions: &'a HashMap<String, usize>
+    program_data: &'a mut ProgramData,
 }
 
 impl<'a> CodeGenerator<'a> {
-    pub fn new(stack_frames : &'a Vec<StackFrame>, functions : &'a HashMap<String, usize>) -> Self {
-        return Self{stack_frames, functions};
+    pub fn new(program_data : &'a mut ProgramData) -> Self {
+        return Self{program_data};
     }
 
     pub fn generate_statement(&mut self, statement : &CgStatement) -> Result<String, String> {
@@ -29,10 +28,14 @@ impl<'a> CodeGenerator<'a> {
                             }
                         }
                     },
+                    _ => unimplemented!()
                 }
             },
             CgStatementType::BuiltInFunction(built_in_function) => {
                 match built_in_function {
+                    CgBuiltInFunctions::BranchLinked(branch_linked) => {
+                        return Ok(format!("bl _{}\n", branch_linked.function_name));
+                    },
                     CgBuiltInFunctions::Assembly(assembly_code) => {
                         return Ok(assembly_code);
                     }
@@ -62,7 +65,7 @@ impl<'a> CodeGenerator<'a> {
 
         result.push_str(&self.initialize_stack_frame(stack_frame));
 
-        for statement in self.get_stack_frame_by_index(stack_frame).statements.clone().iter() {
+        for statement in self.get_stack_frame_by_index(stack_frame).cg_statements.clone().iter() {
             let analyzed_statement_err = self.generate_statement(statement);
 
             match analyzed_statement_err {
@@ -87,7 +90,7 @@ impl<'a> CodeGenerator<'a> {
     pub fn process_all_functions(&mut self) -> String {
         let mut result = String::new();
 
-        for (function_name, stack_frame) in self.functions {
+        for (function_name, stack_frame) in self.program_data.functions.clone() {
             let function_start = format!("_{}:\n", function_name);
             result.push_str(&function_start);
 
@@ -116,6 +119,6 @@ impl<'a> CodeGenerator<'a> {
     }
 
     pub fn get_stack_frame_by_index(&self, index : usize) -> &'_ StackFrame {
-        return self.stack_frames.get(index).unwrap();
+        return self.program_data.stack_frames.get(index).unwrap();
     }
 }

@@ -11,8 +11,7 @@ pub struct Token {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Keywords {
-    VariableType(VariableType),
-    CompileTime
+    VariableType(VariableType)
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -23,7 +22,6 @@ pub enum Identifiers {
 #[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     EOF,
-    BuildInCommand(BuildInCommand),
     Operator(Operators),
     Keyword(Keywords),
     Literal(Literal),
@@ -37,7 +35,9 @@ pub enum BuiltInFunctions {
     Loop,
     Compare,
     Assembly,
-    Format
+    Format,
+    Branch,
+    BranchLinked
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -54,8 +54,4 @@ pub enum Punctuations {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Operators {
     Assignment
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum BuildInCommand {
 }

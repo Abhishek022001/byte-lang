@@ -15,7 +15,7 @@ use datatypes::parser::Parser;
 use datatypes::scope_analysis::ScopeAnalysis;
 use datatypes::code_generator::CodeGenerator;
 
-use crate::datatypes::{code_generator, semantic_analysis};
+use crate::datatypes::program_data::ProgramData;
 
 fn main() {
     let start = std::time::Instant::now();
@@ -98,8 +98,6 @@ fn install_dependency() {
 
         }
     }
-
-    
 }
 
 fn get_project_folder() -> Result<PathBuf, String> {
@@ -177,9 +175,9 @@ fn compile_file() {
     // Open the file.
     let mut file = File::open(file_location).expect("Error Oppening File");
 
-    let mut content = String::new();
+    let mut program_data = ProgramData::new();
 
-    file.read_to_string(&mut content).expect("Error Reading As String");
+    file.read_to_string(&mut program_data.source_code).expect("Error Reading As String");
 
     // Get the path that user is in when running the run command!
     let current_dir = std::env::current_dir().expect("Error getting current Path");
@@ -199,21 +197,21 @@ fn compile_file() {
     // Create _start function.
     write!(writer, ".global _main\n.align 4\n.text\n").expect("Error Writing File");
 
-    let mut tokenizer = Tokenizer::new(&content);
-    let tokens = tokenizer.tokenize_all();
+    let mut tokenizer = Tokenizer::new(&mut program_data);
+    tokenizer.tokenize_all();
 
-    let mut parser = Parser::new(&tokens);
-    let statements = parser.parse_all();
+    let mut parser = Parser::new(&mut program_data);
+    parser.parse_all();
 
-    let mut scope_analysis = ScopeAnalysis::new(&content, &statements);
-    let scope_analysis_result = scope_analysis.process_all();
+    let mut scope_analysis = ScopeAnalysis::new(&mut program_data);
+    scope_analysis.process_all();
 
-    print!("Functions: {:?}\nStack Frames: {:?}\n", scope_analysis_result.1, scope_analysis_result.0);
+    print!("Functions: {:?}\nStack Frames: {:?}\n", program_data.functions, program_data.stack_frames);
 
-    let mut semantic_analysis = SemanticAnaytis::new(&content, &scope_analysis_result.0, &scope_analysis_result.1);
+    let mut semantic_analysis = SemanticAnaytis::new(&mut program_data);
     semantic_analysis.process_all_functions();
 
-    let mut code_generator = CodeGenerator::new(&scope_analysis_result.0, &scope_analysis_result.1);
+    let mut code_generator = CodeGenerator::new(&mut program_data);
     let compiled_code = code_generator.process_all_functions();
 
     write!(writer, "{}", compiled_code).unwrap();

@@ -1,52 +1,85 @@
-use std::{cell::{Ref, RefCell}, clone, collections::HashMap, hash::Hash, rc::Rc, thread::current};
+use std::{collections::HashMap, panic};
 
-use crate::datatypes::{ast_statements::{CgStatement, CgStatementType, VariableType, Expression, Literal}, stack_frame::StackFrame};
+use crate::datatypes::{ast_statements::{BuiltInFunctionsAst, CgBranchLinked, CgBuiltInFunctions, CgStatement, CgStatementType, CgVariableInitialization, Expression, Literal, Statement, Statements, VariableType}, program_data::ProgramData, stack_frame::StackFrame, token::BuiltInFunctions};
 
 pub struct SemanticAnaytis<'a> {
-    untokenized_input: &'a str,
-    stack_frames : &'a Vec<StackFrame>,
-    functions : &'a HashMap<String, usize>
+    program_data : &'a mut ProgramData
 }
 
 impl<'a> SemanticAnaytis<'a> {
-    pub fn new(untokenized_input: &'a str, stack_frames : &'a Vec<StackFrame>, functions : &'a HashMap<String, usize>) -> Self {
+    pub fn new(program_data : &'a mut ProgramData) -> Self {
         Self {
-            untokenized_input,
-            stack_frames,
-            functions
+            program_data
         }
     }
 
-    pub fn process_statement(&mut self, statement : &'_ CgStatement) -> Option<String> {
+    pub fn process_statement(&mut self, statement : &'_ Statement, stack_frame : usize) -> Result<Option<CgStatement>, String> {
         match statement.statement_type.clone() {
-            CgStatementType::VariableInitialization(var_init) => {
-                let var_stack_frame = self.get_stack_frame_by_index(var_init.stack_frame);
+            Statements::VariableDeclaration(var_init) => {
+                if let Some(init_value) = var_init.value {
+                    let init_valid = match (var_init.variable_type, init_value.clone()) {
+                        (VariableType::I8  | VariableType::I16 | VariableType::I32,
+                        Expression::Literal(Literal::Number(_))) => true,
+                        _ => false
+                    };
+
+                    if !init_valid {
+                        return Err(String::from("Invalid var Declaration"));
+                    }
+
+                    self.add_cg_statement_to_stack_frame(stack_frame, CgStatement{statement_type: CgStatementType::VariableInitialization(CgVariableInitialization{init_value: init_value, var_name: var_init.name, stack_frame: stack_frame})})
+                };
+
+                /*let var_stack_frame = self.get_stack_frame_by_index(var_init.stack_frame);
                 let var_in_stack_frame = var_stack_frame.variables.get(&var_init.var_name).unwrap();
 
-                let init_valid = match (var_in_stack_frame.variable_type.clone(), var_init.init_value) {
+                let init_valid = match (var_in_stack_frame.variable_type.clone(), var_init) {
                     (VariableType::I8  | VariableType::I16 | VariableType::I32,
                     Expression::Literal(Literal::Number(_))) => true,
                     _ => false
                 };
 
                 if !init_valid {
-                    return Some(String::from("Invalid var Declaration"));
+                    return Err(String::from("Invalid var Declaration"));
                     //return Err(String::from(format!("Invalid Variable Declaration at line {} and col {}: {:?}", statement.line, statement.col, self.untokenized_input.get(statement.start_pos..statement.end_pos).unwrap()))); 
-                }
+                }*/
 
-                return None;
+                return Ok(None);
             },
+            Statements::Expression(Expression::BuiltInFunction(func)) => {
+                match func {
+                    BuiltInFunctionsAst::BranchLinked(branch_linked) => {
+                        if self.program_data.functions.get(&branch_linked.function_name).is_none() {
+                            panic!("Branching to unknown function: {:?}", branch_linked.function_name);
+                        }
+
+                        self.add_cg_statement_to_stack_frame(stack_frame, CgStatement { statement_type: CgStatementType::BuiltInFunction(CgBuiltInFunctions::BranchLinked(CgBranchLinked{function_name: branch_linked.function_name}))});
+                    },
+                    BuiltInFunctionsAst::Assembly(asm_expression) => {
+                        let asm_code : String = match *asm_expression {
+                            Expression::Literal(Literal::String(asm_code)) => asm_code,
+                            Expression::BuiltInFunction(BuiltInFunctionsAst::Format(format)) => {
+                                format.parse()
+                            },
+                            _ => {panic!("Invalid shit given to asm func");}
+                        };
+
+                        self.add_cg_statement_to_stack_frame(stack_frame, CgStatement{ statement_type: CgStatementType::BuiltInFunction(CgBuiltInFunctions::Assembly(asm_code))});
+                    }
+                    _ => {}
+                }
+            }
             _ => ()
         };
 
-        return None;
+        return Ok(None);
     }
 
     pub fn process_stack_frame(&mut self, stack_frame : usize) -> () {
         for statement in self.get_stack_frame_by_index(stack_frame).statements.clone().iter() {
-            let analyzed_statement_err = self.process_statement(statement);
+            let analyzed_statement_err = self.process_statement(statement, stack_frame);
 
-            if let Some(err) = analyzed_statement_err {
+            if let Err(err) = analyzed_statement_err {
                 panic!("{:?}", err);
             }
         }
@@ -59,9 +92,13 @@ impl<'a> SemanticAnaytis<'a> {
     }
 
     pub fn process_all_functions(&mut self) -> () {
-        for (function_name, stack_index) in self.functions.clone().iter() {
+        for (function_name, stack_index) in self.program_data.functions.clone().iter() {
             self.process_stack_frame_and_children(stack_index.clone());
         }
+    }
+
+    pub fn add_cg_statement_to_stack_frame(&mut self, stack_frame : usize, statement : CgStatement) -> () {
+        self.get_stack_frame_by_index_mut(stack_frame).cg_statements.push(statement);
     }
 
     pub fn traverse_stack_frame_children(&mut self, stack_frame_index : usize) -> () {
@@ -75,6 +112,10 @@ impl<'a> SemanticAnaytis<'a> {
     }
 
     pub fn get_stack_frame_by_index(&self, index : usize) -> &'_ StackFrame {
-        return self.stack_frames.get(index).unwrap();
+        return self.program_data.stack_frames.get(index).unwrap();
+    }
+    
+    pub fn get_stack_frame_by_index_mut(&mut self, index : usize) -> &'_ mut StackFrame {
+        return self.program_data.stack_frames.get_mut(index).unwrap();
     }
 }

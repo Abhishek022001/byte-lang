@@ -1,25 +1,20 @@
-use std::{collections::HashMap, panic, vec};
+use std::{collections::HashMap, panic};
 
-use crate::datatypes::{ast_statements::{BuiltInFunctionsAst, CgBuiltInFunctions, CgStatement, CgStatementType, CgVariableInitialization, Expression, Literal, Statement, Statements, VariableDeclaration}, stack_frame::{StackFrame, StackVariable}, token::BuiltInFunctions};
+use crate::datatypes::{ast_statements::{Statement, Statements, VariableDeclaration}, program_data::ProgramData, stack_frame::{StackFrame, StackVariable}};
 
 pub struct ScopeAnalysis<'a> {
-    source_code : &'a str,
-    statements : &'a Vec<Statement>,
+    program_data : &'a mut ProgramData,
     position : usize,
-    functions : HashMap<String, usize>,
-    stack_frames : Vec<StackFrame>,
     scope_stack : Vec<usize>
 }
 
 impl<'a> ScopeAnalysis<'a> {
-    pub fn new(source_code : &'a str, statements : &'a Vec<Statement>) -> Self {
-        return Self{source_code, statements, position : 0, stack_frames: Vec::new(), scope_stack: Vec::new(), functions: HashMap::new()};
+    pub fn new(program_data : &'a mut ProgramData) -> Self {
+        return Self{position : 0, scope_stack: Vec::new(), program_data};
     }
 
-    pub fn process_all(&mut self) -> (Vec<StackFrame>, HashMap<String, usize>) {
+    pub fn process_all(&mut self) -> () {
         let mut current_function = String::new();
-
-        print!("Statements: ");
 
         loop {
             let current_statement = self.current_statement().clone();
@@ -28,15 +23,15 @@ impl<'a> ScopeAnalysis<'a> {
             
             if current_function.is_empty() {
                 if let Statements::FunctionDeclaration(func_declaration) = current_statement.statement_type.clone() {
-                    if self.functions.get(&func_declaration.name).is_some() {
+                    if self.program_data.functions.get(&func_declaration.name).is_some() {
                         panic!("Duplicate function: {}", func_declaration.name);
                     }
 
-                    let stack_frame_index = self.stack_frames.len();
+                    let stack_frame_index = self.program_data.stack_frames.len();
 
-                    self.stack_frames.push(StackFrame::default());
+                    self.program_data.stack_frames.push(StackFrame::default());
 
-                    self.functions.insert(func_declaration.name.clone(), stack_frame_index);
+                    self.program_data.functions.insert(func_declaration.name.clone(), stack_frame_index);
 
                     self.scope_stack.push(stack_frame_index);
 
@@ -56,11 +51,13 @@ impl<'a> ScopeAnalysis<'a> {
                 Statements::VariableDeclaration(var_declaration) => {
                     self.add_var_to_stack_frame(&var_declaration);
 
-                    if let Some(init_value) = var_declaration.value {
+                    self.add_statement_to_current_stack_frame(current_statement);
+
+                    /*if let Some(init_value) = var_declaration.value {
                         self.add_statement_to_current_stack_frame(CgStatement{
-                            statement_type: CgStatementType::VariableInitialization(CgVariableInitialization{var_name: var_declaration.name.clone(), init_value: init_value, stack_frame: self.get_current_stack_frame_index()})
+
                         });
-                    }
+                    }*/
                 },
                 Statements::StackFramePop => {
                     self.pop_scope();
@@ -69,7 +66,7 @@ impl<'a> ScopeAnalysis<'a> {
                         current_function = String::default();
                     }
                 },
-                Statements::BuiltInFunctions(func) => {
+                /*Statements::BuiltInFunctions(func) => {
                     match func {
                         BuiltInFunctionsAst::Assembly(asm_expression) => {
                             let asm_code : String = match asm_expression {
@@ -80,30 +77,32 @@ impl<'a> ScopeAnalysis<'a> {
                             self.get_current_stack_frame().statements.push(CgStatement { statement_type: CgStatementType::BuiltInFunction(CgBuiltInFunctions::Assembly(asm_code))});
                         }
                     }
+                },*/
+                Statements::EOF => {
+                    break;
                 },
-                Statements::EOF => break,
-                _ => {}
+                _ => {
+                    self.add_statement_to_current_stack_frame(current_statement);
+                }
             };
             
             self.advance_position();
         }
 
         print!("\n");
-
-        return (self.stack_frames.clone(), self.functions.clone());
     }
 
     pub fn create_new_scope(&mut self) -> () {
-        let new_frame_index = self.stack_frames.len();
+        let new_frame_index = self.program_data.stack_frames.len();
 
-        self.stack_frames.push(StackFrame::default());
+        self.program_data.stack_frames.push(StackFrame::default());
 
         self.get_current_stack_frame().children.push(new_frame_index);
 
         self.scope_stack.push(new_frame_index);
     }
 
-    pub fn add_statement_to_current_stack_frame(&mut self, statement : CgStatement) -> () {
+    pub fn add_statement_to_current_stack_frame(&mut self, statement : Statement) -> () {
         self.get_current_stack_frame().statements.push(statement);
 
         return;
@@ -128,7 +127,7 @@ impl<'a> ScopeAnalysis<'a> {
     pub fn get_current_stack_frame(&mut self) -> &'_ mut StackFrame {
         let current_index = self.get_current_stack_frame_index();
 
-        return self.stack_frames.get_mut(current_index).unwrap();
+        return self.program_data.stack_frames.get_mut(current_index).unwrap();
     }
     
     pub fn get_current_stack_frame_index(&self) -> usize {
@@ -136,7 +135,7 @@ impl<'a> ScopeAnalysis<'a> {
     }
 
     pub fn current_statement(&self) -> &Statement {
-        return &self.statements.get(self.position).unwrap();
+        return &self.program_data.statements.get(self.position).unwrap();
     }
 
     pub fn advance_position(&mut self) -> () {

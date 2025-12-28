@@ -1,8 +1,8 @@
-use crate::datatypes::{ast_statements::{Literal, VariableType}, token::{BuildInCommand, BuiltInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType}};
+use crate::datatypes::{ast_statements::{Literal, VariableType}, program_data::ProgramData, token::{BuiltInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType}};
 
 // Tokenzer struct
 pub struct Tokenizer<'a> {
-    input: &'a str,
+    program_data: &'a mut ProgramData,
     position: usize,
     col: usize,
     line: usize,
@@ -10,15 +10,11 @@ pub struct Tokenizer<'a> {
 
 impl<'a> Tokenizer<'a> {
     // Initialize the tokenizer.
-    pub fn new(input: &'a str) -> Self {
-        Self {input, position: 0, col: 1, line: 1}
+    pub fn new(program_data: &'a mut ProgramData) -> Self {
+        Self {program_data, position: 0, col: 1, line: 1}
     }
 
-    pub fn tokenize_all(&mut self) -> Vec<Token> {
-        let mut res : Vec<Token> = Vec::new();
-
-        print!("Tokens: ");
-
+    pub fn tokenize_all(&mut self) -> () {
         loop {
             let token = self.next_token();
 
@@ -26,10 +22,13 @@ impl<'a> Tokenizer<'a> {
                 Some(tkn) => {
                     print!(" {:?} ", tkn);
 
-                    res.push(tkn.clone());
-                    if matches!(&tkn.kind, TokenType::EOF) {
+                    let eof = tkn.kind == TokenType::EOF;
+
+                    self.program_data.tokens.push(tkn);
+
+                    if eof {
                         print!("\n");
-                        return res;
+                        return;
                     }
                 },
                 None => {}
@@ -40,7 +39,7 @@ impl<'a> Tokenizer<'a> {
     pub fn next_token(&mut self) -> Option<Token> {
         self.skip_whitespace();
 
-        if self.input.len() <= self.position {
+        if self.program_data.source_code.len() <= self.position {
             return Some(Token{kind: TokenType::EOF, col: self.col, line: self.line, start_pos: self.position, end_pos: self.position});
         }
 
@@ -75,7 +74,7 @@ impl<'a> Tokenizer<'a> {
 
                 self.advance(1);
 
-                while self.position < self.input.len() && self.current_char() != '"' {
+                while self.position < self.program_data.source_code.len() && self.current_char() != '"' {
                     str.push(self.current_char());
                     self.advance(1);
                 };
@@ -85,7 +84,7 @@ impl<'a> Tokenizer<'a> {
                 return Some(Token{kind: TokenType::Literal(Literal::String(str)), col: self.col, line: self.line, start_pos, end_pos: self.position});
             },
             _ => {
-                while self.position < self.input.len() && self.current_char().is_whitespace() == false && matches!(self.current_char(), ';' | '(' | ')' | ',') == false {
+                while self.position < self.program_data.source_code.len() && self.current_char().is_whitespace() == false && matches!(self.current_char(), ';' | '(' | ')' | ',') == false {
                     res.push(self.current_char());
                     self.advance(1);
                 };
@@ -103,29 +102,32 @@ impl<'a> Tokenizer<'a> {
                 return Some(Token{kind: TokenType::Punctuation(Punctuations::Semicolon), ..token_default});
             },
             ":" => {
-                return Some(Token{kind: TokenType::Punctuation(Punctuations::Colon), ..token_default})
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::Colon), ..token_default});
             }
             "=" => {
                 return Some(Token{kind: TokenType::Operator(Operators::Assignment), ..token_default});
             },
             "{" => {
-                return Some(Token{kind: TokenType::Punctuation(Punctuations::OpenBraces), ..token_default})
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::OpenBraces), ..token_default});
             },
             "}" => {
-                return Some(Token{kind: TokenType::Punctuation(Punctuations::ClosedBraces), ..token_default})
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::ClosedBraces), ..token_default});
             },
 
             "(" => {
-                return Some(Token{kind: TokenType::Punctuation(Punctuations::OpenParenthesis), ..token_default})
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::OpenParenthesis), ..token_default});
             },
             ")" => {
-                return Some(Token{kind: TokenType::Punctuation(Punctuations::ClosedParenthesis), ..token_default})
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::ClosedParenthesis), ..token_default});
             },
             "," => {
-                return Some(Token{kind: TokenType::Punctuation(Punctuations::Comma), ..token_default})
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::Comma), ..token_default});
+            },
+            "bl" => {
+                return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::BranchLinked), ..token_default});
             },
             "asm" => {
-                return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Assembly), ..token_default})
+                return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Assembly), ..token_default});
             }
             "i32" | "i16" | "i8" | "void" => {
                 return Some(Token{kind: TokenType::Keyword(Keywords::VariableType(
@@ -136,13 +138,16 @@ impl<'a> Tokenizer<'a> {
                         "void" => VariableType::Void,
                         _ => unreachable!()
                     }
-                )), ..token_default})
+                )), ..token_default});
             },
+            "format" => {
+                return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Format), ..token_default});
+            }
             "compare" => {
-                return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Compare), ..token_default})
+                return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Compare), ..token_default});
             },
             "loop" => {
-                return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Loop), ..token_default})
+                return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Loop), ..token_default});
             },
             _ => {
                 match res.parse::<i32>() {
@@ -183,7 +188,7 @@ impl<'a> Tokenizer<'a> {
 
     // Skips whitespace.
     pub fn skip_whitespace(&mut self) {
-        while self.position < self.input.len() && self.current_char().is_whitespace() && self.current_char() != '\n' {
+        while self.position < self.program_data.source_code.len() && self.current_char().is_whitespace() && self.current_char() != '\n' {
             self.col += 1;
             self.position += 1;
         }
@@ -191,10 +196,10 @@ impl<'a> Tokenizer<'a> {
 
     // Get current char of input.
     pub fn current_char(&self) -> char {
-        self.input[self.position..].chars().next().unwrap()
+        self.program_data.source_code[self.position..].chars().next().unwrap()
     }
 
     pub fn char_at_offset(&self, offset : i32) -> char {
-        self.input[((self.position as i32) + offset) as usize..].chars().next().unwrap()
+        self.program_data.source_code[((self.position as i32) + offset) as usize..].chars().next().unwrap()
     }
  }

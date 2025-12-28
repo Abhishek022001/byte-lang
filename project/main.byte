@@ -1,41 +1,13 @@
-//
-Root file
-//
-//
-@compileTime
-@unroll
-@static
-void : mov(char* register, i32 num) {
-    asm!(format!("
-        mov {}, [sp, {}
-    "), retgister, stack_frame_offset(num));
-}
-
-[compileTime, static, unroll]
-void : mov(char* register, i32 num) {
-    asm!(format!("
-        mov {}, [sp, {}
-    "), retgister, stack_frame_offset(num));
-}
-//
 void : term() {
-    asm("
-mov x0, #0
+    asm(format("
+mov x0, #{i32}
 mov x16, #1
 svc #0x80
-");
-
-    //mov("x0", 0);
-    mov(x16, 1);
-    syscall();
-
-    asm("
-        mov x0, #0
-        mov x16, #0x2000001
-        svc #0x80
-    ");//
+", 1));
 }
 
 void : main() {
     i32 test = 0;
+
+    bl(term);
 }
