@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use crate::datatypes::{ast_statements::{CgBuiltInFunctions, CgStatement, CgStatementType, Expression, Literal, Statement, Statements}, program_data::ProgramData, stack_frame::StackFrame};
+use crate::datatypes::{ast_statements::{CgBuiltInFunctions, CgStatement, CgStatementType, Expression, Literal, Statement, Statements, VariableType}, program_data::ProgramData, stack_frame::StackFrame};
 
 pub struct CodeGenerator<'a> {
     program_data: &'a mut ProgramData,
@@ -15,13 +14,26 @@ impl<'a> CodeGenerator<'a> {
             CgStatementType::VariableInitialization(var_init) => {
                 let stack_frame_borrow = self.get_stack_frame_by_index(var_init.stack_frame);
 
-                let offset = stack_frame_borrow.variables.get(&var_init.var_name).unwrap().offset;
+                let variable = stack_frame_borrow.variables.get(&var_init.var_name).unwrap();
 
                 match var_init.init_value {
                     Expression::Literal(literal) => {
                         match literal {
                             Literal::Number(num_literal) => {
-                                return Ok(format!("mov x10, #{}\nstr x10, [x29, #{}]\n", num_literal, offset));
+                                match variable.variable_type {
+                                    VariableType::I32 => {
+                                        return Ok(format!("mov w10, #{}\nstr w10, [x29, #-{}]\n", num_literal, stack_frame_borrow.stack_mem_allocated - variable.offset));
+                                    },
+                                    VariableType::I16 => {
+                                        return Ok(format!("mov w10, #{}\nstrh w10, [x29, #-{}]\n", num_literal, stack_frame_borrow.stack_mem_allocated - variable.offset));
+                                    },
+                                    VariableType::I8 => {
+                                        return Ok(format!("mov w10, #{}\nstrb w10, [x29, #-{}]\n", num_literal, stack_frame_borrow.stack_mem_allocated - variable.offset));
+                                    },
+                                    _ => {
+                                        return Err("Error init var".to_string());
+                                    }
+                                }
                             },
                             _ => {
                                 return Err("Not supported Literal".to_string());
@@ -45,19 +57,23 @@ impl<'a> CodeGenerator<'a> {
     }
 
     pub fn align_memory(&self, mem : usize, alignment : usize) -> usize {
-        return (mem + (alignment - 1)) & !(alignment - 1)
+        return (mem + (alignment - 1)) & !(alignment - 1);
     }
 
     pub fn initialize_stack_frame(&mut self, stack_frame : usize) -> String {
-        let stack_frame_borrow = self.get_stack_frame_by_index(stack_frame);
+        let mem = self.get_stack_frame_by_index(stack_frame).stack_mem_allocated.clone();
 
-        return format!("stp x29, x30, [sp, #-16]!\nmov x29, sp\nsub sp, sp, #{}\n", self.align_memory(stack_frame_borrow.stack_mem_allocated, 16));
+        let aligned_mem = self.align_memory(mem, 16);
+
+        self.get_stack_frame_by_index_mut(stack_frame).stack_mem_allocated = aligned_mem;
+
+        return format!("stp x29, x30, [sp, #-16]!\nmov x29, sp\nsub sp, sp, #{}\n", aligned_mem);
     }
 
     pub fn return_stack_frame(&mut self, stack_frame : usize) -> String {
         let stack_frame_borrow = self.get_stack_frame_by_index(stack_frame);
 
-        return format!("add sp, sp, #{}\nldp x29, x30, [sp], #16\nret\n", self.align_memory(stack_frame_borrow.stack_mem_allocated, 16));
+        return format!("add sp, sp, #{}\nldp x29, x30, [sp], #16\nret\n", stack_frame_borrow.stack_mem_allocated);
     }
 
     pub fn process_stack_frame(&mut self, stack_frame : usize) -> String {
@@ -120,5 +136,9 @@ impl<'a> CodeGenerator<'a> {
 
     pub fn get_stack_frame_by_index(&self, index : usize) -> &'_ StackFrame {
         return self.program_data.stack_frames.get(index).unwrap();
+    }
+
+    pub fn get_stack_frame_by_index_mut(&mut self, index : usize) -> &'_ mut StackFrame {
+        return self.program_data.stack_frames.get_mut(index).unwrap();
     }
 }

@@ -16,8 +16,12 @@ _main:
 stp x29, x30, [sp, #-16]!
 mov x29, sp
 sub sp, sp, #16
-mov x10, #0
-str x10, [x29, #0]
+mov w10, #4
+str w10, [x29, #-16]
+mov w10, #2
+strh w10, [x29, #-12]
+mov w10, #1
+strb w10, [x29, #-10]
 bl _term
 add sp, sp, #16
 ldp x29, x30, [sp], #16

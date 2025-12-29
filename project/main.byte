@@ -7,7 +7,9 @@ svc #0x80
 }
 
 void : main() {
-    i32 test = 0;
+    i32 var = 4;
+    i16 var2 = 2;
+    i8 var3 = 1;
 
     bl(term);
 }

@@ -4,6 +4,23 @@ use crate::datatypes::ast_statements::{BranchLinkedAst, BuiltInFunctionsAst, Exp
 use crate::datatypes::program_data::ProgramData;
 use crate::datatypes::token::{BuiltInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType};
 
+macro_rules! expect_token_with_err {
+    ($type_expecting:expr, $self:expr) => {
+        let res = $self.expect_token($type_expecting);
+        if (res.is_err()) {
+            return None;
+        }
+    };
+}
+
+macro_rules! throw_err {
+    ($self:expr, $error:expr) => {
+        $self.handle_error($error);
+
+        return None;
+    };
+}
+
 pub struct Parser<'a> {
     program_data: &'a mut ProgramData,
     position: usize,
@@ -17,7 +34,7 @@ impl<'a> Parser<'a> {
     pub fn parse_all(&mut self) -> () {
         loop {
             match self.parse_next() {
-                Ok(statement) => {
+                Some(statement) => {
                     self.program_data.statements.push(statement.clone());
 
                     print!("{:?}", statement);
@@ -26,20 +43,20 @@ impl<'a> Parser<'a> {
                         break;
                     }
                 },
-                Err(err) => {
-                    panic!("{}", err);
+                None => {
+                    continue;
                 },
             };
         }
     }
 
-    pub fn parse_format_built_in_function(&mut self, first_token : &Token) -> Result<Statement, String> {
+    pub fn parse_format_built_in_function(&mut self, first_token : &Token) -> Option<Statement> {
         self.advance_position();
 
-        self.expect_token(TokenType::Punctuation(Punctuations::OpenParenthesis));
+        expect_token_with_err!(TokenType::Punctuation(Punctuations::OpenParenthesis), self);
 
         let TokenType::Literal(Literal::String(string_literal)) = self.current_token().kind else {
-            panic!("Expected compile time string");
+            throw_err!(self, "Expected compile time string".to_string());
         };
 
         self.advance_position();
@@ -61,10 +78,10 @@ impl<'a> Parser<'a> {
             }
         }
 
-        return Ok(Statement::new(first_token, self.current_token().end_pos, Statements::Expression(Expression::BuiltInFunction(BuiltInFunctionsAst::Format(Format{string: string_literal, args_provided: args})))));
+        return Some(Statement::new(first_token, self.current_token().end_pos, Statements::Expression(Expression::BuiltInFunction(BuiltInFunctionsAst::Format(Format{string: string_literal, args_provided: args})))));
     }
 
-    pub fn parse_function_declaration(&mut self, first_token : &Token, func_return_type : VariableType) -> Result<Statement, String> {
+    pub fn parse_function_declaration(&mut self, first_token : &Token, func_return_type : VariableType) -> Option<Statement> {
         self.advance_position();
 
         let func_name_tkn = self.current_token();
@@ -75,33 +92,35 @@ impl<'a> Parser<'a> {
         };
 
         if func_name.is_empty() {
-            return Err("Parsing func name failed".to_string());
+            throw_err!(self, "Parsing func name failed".to_string());
         }
 
         self.advance_position();
 
-        self.expect_token(TokenType::Punctuation(Punctuations::OpenParenthesis));
+        expect_token_with_err!(TokenType::Punctuation(Punctuations::OpenParenthesis), self);
 
         let args : Vec<FunctionArg> = match self.current_token().kind.clone() {
             TokenType::Punctuation(Punctuations::ClosedParenthesis) => Vec::new(),
-            TokenType::Keyword(Keywords::VariableType(var_type)) => unimplemented!(),
-            _ => return Err("Unknown syntax err".to_string())
+            TokenType::Keyword(Keywords::VariableType(var_type)) => todo!(),
+            _ => {
+                throw_err!(self, "Unknown syntax err".to_string());
+            }
         };
 
         self.advance_position();
 
-        self.expect_token(TokenType::Punctuation(Punctuations::OpenBraces));
+        expect_token_with_err!(TokenType::Punctuation(Punctuations::OpenBraces), self);
 
-        return Ok(Statement::new(first_token, self.current_token().end_pos, Statements::FunctionDeclaration(FunctionDeclaration{
+        return Some(Statement::new(first_token, self.current_token().end_pos, Statements::FunctionDeclaration(FunctionDeclaration{
             args,
             name : func_name,
             return_type: func_return_type
         })));
     }
 
-    pub fn parse_variable_declaration(&mut self, first_token : &Token, var_type : VariableType, var_name : &String) -> Result<Statement, String> {
+    pub fn parse_variable_declaration(&mut self, first_token : &Token, var_type : VariableType, var_name : &String) -> Option<Statement> {
         if var_type == VariableType::Void {
-            return Err("Can't declare variable as void".to_string());
+            throw_err!(self, "Can't declare variable as void".to_string());
         }
 
         let end_pos;
@@ -127,7 +146,7 @@ impl<'a> Parser<'a> {
                     };
 
                     if option_value.is_none() {
-                        return Err(String::from("Please Provide a valid value"));
+                        throw_err!(self, String::from("Please Provide a valid value"));
                     }
 
                     let value = option_value.unwrap();
@@ -136,17 +155,13 @@ impl<'a> Parser<'a> {
 
                     let semicolon_token = self.current_token();
 
-                    if semicolon_token.kind != TokenType::Punctuation(Punctuations::Semicolon) {
-                        println!("Expected Semicolon after declaring var");
-                    }
-
-                    self.advance_position();
+                    expect_token_with_err!(TokenType::Punctuation(Punctuations::Semicolon), self);
 
                     end_pos = semicolon_token.end_pos;
         
                     Some(value)
                 } else {
-                    return Err(String::from("Invalid identifier found"));
+                    throw_err!(self, String::from("Invalid identifier found"));
                 }
             },
            TokenType::Punctuation(Punctuations::Semicolon) => {
@@ -157,20 +172,20 @@ impl<'a> Parser<'a> {
                 None
             },
             _ => {
-                return Err(String::from("Invalid identifier found"));
+                throw_err!(self, String::from("Invalid identifier found"));
             }
         };
 
         
-        return Ok(Statement::new(&first_token, end_pos, Statements::VariableDeclaration(VariableDeclaration{name: var_name.clone(), value, variable_type: var_type})));
+        return Some(Statement::new(&first_token, end_pos, Statements::VariableDeclaration(VariableDeclaration{name: var_name.clone(), value, variable_type: var_type})));
     }
 
-    pub fn parse_next(&mut self) -> Result<Statement, String> {
+    pub fn parse_next(&mut self) -> Option<Statement> {
         let token = self.current_token();
 
         match token.kind.clone() {
             TokenType::EOF => {
-                return Ok(Statement::new(&token, token.end_pos, Statements::EOF));
+                return Some(Statement::new(&token, token.end_pos, Statements::EOF));
             },
             TokenType::BuiltInFunctions(BuiltInFunctions::Format) => {
                 return self.parse_format_built_in_function(&token);
@@ -178,7 +193,7 @@ impl<'a> Parser<'a> {
             TokenType::BuiltInFunctions(BuiltInFunctions::Assembly) => {
                 self.advance_position();
 
-                self.expect_token(TokenType::Punctuation(Punctuations::OpenParenthesis));
+                expect_token_with_err!(TokenType::Punctuation(Punctuations::OpenParenthesis), self);
 
                 let asm_code = match self.current_token().kind {
                     TokenType::Literal(Literal::String(str)) => {
@@ -191,22 +206,23 @@ impl<'a> Parser<'a> {
                         if let Statements::Expression(Expression::BuiltInFunction(BuiltInFunctionsAst::Format(format))) = format.statement_type {
                             Expression::BuiltInFunction(BuiltInFunctionsAst::Format(format))
                         } else {
-                            panic!()
+                            throw_err!(self, "Invalid token given to function asm".to_string());
                         }
                     }
-                    _ => {panic!("Expected string in asm_code");}
+                    _ => {
+                        throw_err!(self, "Invalid token given to function asm".to_string());
+                    }
                 };
 
-                self.expect_token(TokenType::Punctuation(Punctuations::ClosedParenthesis));
+                expect_token_with_err!(TokenType::Punctuation(Punctuations::ClosedParenthesis), self);
+                expect_token_with_err!(TokenType::Punctuation(Punctuations::Semicolon), self);
 
-                self.expect_token(TokenType::Punctuation(Punctuations::Semicolon));
-
-                return Ok(Statement::new(&token, self.current_token().end_pos, Statements::Expression(Expression::BuiltInFunction(BuiltInFunctionsAst::Assembly(Box::new(asm_code))))));
+                return Some(Statement::new(&token, self.current_token().end_pos, Statements::Expression(Expression::BuiltInFunction(BuiltInFunctionsAst::Assembly(Box::new(asm_code))))));
             },
             TokenType::Punctuation(Punctuations::ClosedBraces) => {
                 self.advance_position();
 
-                return Ok(Statement::new(&token, token.end_pos, Statements::StackFramePop))
+                return Some(Statement::new(&token, token.end_pos, Statements::StackFramePop))
             },
             TokenType::Keyword(keyword) => {
                 match keyword {
@@ -221,7 +237,7 @@ impl<'a> Parser<'a> {
                                         // Handle func decl
                                     },
                                     _ => {
-                                        return Err(String::from("Unknown Punctuation\n"));
+                                        throw_err!(self, String::from("Unknown Punctuation"));
                                     }
                                 }
                             },
@@ -231,12 +247,12 @@ impl<'a> Parser<'a> {
                                         return self.parse_variable_declaration(&token, var_type, &var_name);
                                     },
                                     _ => {
-                                        return Err(String::from("Unknown Identifier\n"));
+                                        throw_err!(self, String::from("Unknown Identifier"));
                                     }
                                 }
                             }
                             _ => {
-                                return Err(String::from("Unknown Token Type\n"));
+                                throw_err!(self, String::from("Syntax Error"));
                             }
                         }
                     }
@@ -245,10 +261,10 @@ impl<'a> Parser<'a> {
             TokenType::BuiltInFunctions(BuiltInFunctions::BranchLinked) => {
                 self.advance_position();
 
-                self.expect_token(TokenType::Punctuation(Punctuations::OpenParenthesis));
+                expect_token_with_err!(TokenType::Punctuation(Punctuations::OpenParenthesis), self);
 
                 let TokenType::Identifiers(Identifiers::Identifier(identifier)) = self.current_token().kind else {
-                    panic!("")
+                    throw_err!(self, "Expected function".to_string());
                 };
 
                 self.advance_position();
@@ -265,23 +281,38 @@ impl<'a> Parser<'a> {
                             todo!();
                         },
                         _ => {
-                            panic!("");
+                            throw_err!(self, "Syntax Error".to_string());
                         }
                     }
                 }
 
                 let end_pos = self.current_token().end_pos;
 
-                self.expect_token(TokenType::Punctuation(Punctuations::Semicolon));
+                expect_token_with_err!(TokenType::Punctuation(Punctuations::Semicolon), self);
 
-                return Ok(Statement::new(&token, end_pos, Statements::Expression(Expression::BuiltInFunction(BuiltInFunctionsAst::BranchLinked(BranchLinkedAst{args, function_name: identifier})))));
+                return Some(Statement::new(&token, end_pos, Statements::Expression(Expression::BuiltInFunction(BuiltInFunctionsAst::BranchLinked(BranchLinkedAst{args, function_name: identifier})))));
             }
             _ => {
-                return Err(format!("Syntax Error!!! {:?}", token.kind));
+                throw_err!(self, "Syntax Error".to_string());
             }
         };
+    }
 
-        //return Err(String::from("Syntax Error"));
+    pub fn handle_error(&mut self, error : String) -> () {
+        self.program_data.errors.push(error.clone());
+        self.skip_until_semicolon();
+
+        return;
+    }
+
+    pub fn skip_until_semicolon(&mut self) -> () {
+        while self.current_token().kind != TokenType::Punctuation(Punctuations::Semicolon) {
+            self.advance_position();
+        }
+
+        self.advance_position();
+
+        return;
     }
 
     pub fn advance_position(&mut self) -> () {
@@ -294,11 +325,17 @@ impl<'a> Parser<'a> {
         return tkn;
     }
 
-    pub fn expect_token(&mut self, token_type : TokenType) -> () {
+    pub fn expect_token(&mut self, token_type : TokenType) -> Result<(), ()> {
         if self.current_token().kind != token_type {
-            panic!("Current token type: {:?} Expected: {:?}", self.current_token().kind, token_type);
+            let err = format!("Current token type: {:?} Expected: {:?}", self.current_token().kind.clone(), token_type);
+
+            self.handle_error(err);
+
+            return Err(());
         }
 
         self.advance_position();
+
+        return Ok(());
     }
 }

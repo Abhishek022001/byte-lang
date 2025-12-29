@@ -203,6 +203,10 @@ fn compile_file() {
     let mut parser = Parser::new(&mut program_data);
     parser.parse_all();
 
+    if program_data.errors.len() > 0 {
+        panic!("Errors: {:?}\n", program_data.errors);
+    }
+
     let mut scope_analysis = ScopeAnalysis::new(&mut program_data);
     scope_analysis.process_all();
 
