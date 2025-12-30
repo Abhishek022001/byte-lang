@@ -8,3 +8,4 @@ pub mod stack_item;
 pub mod token;
 pub mod tokenizer;
 pub mod program_data;
+pub mod assembly_instructions;

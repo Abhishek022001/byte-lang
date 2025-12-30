@@ -1,4 +1,4 @@
-use crate::datatypes::token::{BuiltInFunctions, Identifiers, Token, TokenType};
+use crate::datatypes::token::{BuiltInFunctions, Identifiers, MemoryLocations, Token, TokenType};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Statement {
@@ -32,7 +32,8 @@ impl Statement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionArg {
     pub arg_var_type : VariableType,
-    pub arg_name : String
+    pub arg_name : String,
+    pub memory_location : MemoryLocationsAst
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -60,8 +61,14 @@ pub enum BuiltInFunctionsAst {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum MemoryLocationsAst {
+    Stack,
+    Register(String)
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct BranchLinkedAst {
-    pub args : Vec<Identifiers>,
+    pub args : Vec<Expression>,
     pub function_name : String
 }
 
@@ -147,6 +154,7 @@ pub struct VariableDeclaration {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Literal(Literal),
+    Identifier(Identifiers),
     BuiltInFunction(BuiltInFunctionsAst)
 }
 
@@ -197,12 +205,19 @@ pub enum CgBuiltInFunctions {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CgBranchLinked {
-    pub function_name : String
+    pub function_name : String,
+    pub args : Vec<CgExpression>
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum CgExpression {
+    StackVariableIdentifier(String),
+    Literal(Literal)
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CgVariableInitialization {
-    pub init_value : Expression,
+    pub init_value : CgExpression,
     pub var_name : String,
     pub stack_frame : usize
 }

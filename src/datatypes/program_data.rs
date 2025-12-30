@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use crate::datatypes::{ast_statements::Statement, stack_frame::StackFrame, token::Token};
+use crate::datatypes::{ast_statements::{Function, FunctionArg, Statement}, stack_frame::StackFrame, token::Token};
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct ProgramData {
     pub stack_frames : Vec<StackFrame>,
-    pub functions : HashMap<String, usize>,
+    pub functions : HashMap<String, Function>,
     pub statements : Vec<Statement>,
     pub source_code : String,
     pub tokens : Vec<Token>,

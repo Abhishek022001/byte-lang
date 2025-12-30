@@ -1,8 +1,8 @@
 use std::panic;
 
-use crate::datatypes::ast_statements::{BranchLinkedAst, BuiltInFunctionsAst, Expression, Format, FunctionArg, FunctionDeclaration, Literal, Statement, Statements, VariableDeclaration, VariableType};
+use crate::datatypes::ast_statements::{BranchLinkedAst, BuiltInFunctionsAst, Expression, Format, Function, FunctionArg, FunctionDeclaration, Literal, MemoryLocationsAst, Statement, Statements, VariableDeclaration, VariableType};
 use crate::datatypes::program_data::ProgramData;
-use crate::datatypes::token::{BuiltInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType};
+use crate::datatypes::token::{BuiltInFunctions, Identifiers, Keywords, MemoryLocations, Operators, Punctuations, Token, TokenType};
 
 macro_rules! expect_token_with_err {
     ($type_expecting:expr, $self:expr) => {
@@ -99,13 +99,74 @@ impl<'a> Parser<'a> {
 
         expect_token_with_err!(TokenType::Punctuation(Punctuations::OpenParenthesis), self);
 
-        let args : Vec<FunctionArg> = match self.current_token().kind.clone() {
-            TokenType::Punctuation(Punctuations::ClosedParenthesis) => Vec::new(),
-            TokenType::Keyword(Keywords::VariableType(var_type)) => todo!(),
-            _ => {
-                throw_err!(self, "Unknown syntax err".to_string());
-            }
-        };
+        let mut args : Vec<FunctionArg> = Vec::new();
+
+        loop {
+            match self.current_token().kind.clone() {
+                TokenType::Punctuation(Punctuations::ClosedParenthesis) => break,
+                TokenType::Keyword(Keywords::VariableType(var_type)) => {
+                    self.advance_position();
+
+                    let TokenType::Identifiers(Identifiers::Identifier(arg_name)) = self.current_token().kind else {
+                        throw_err!(self, "Unknown token in function arg".to_string());
+                    };
+
+                    self.advance_position();
+
+                    if TokenType::Punctuation(Punctuations::Colon) != self.current_token().kind {
+                        args.push(FunctionArg { arg_var_type: var_type, arg_name, memory_location: MemoryLocationsAst::Stack });
+                        self.advance_position();
+                        continue;
+                    }
+
+                    self.advance_position();
+
+                    expect_token_with_err!(TokenType::Punctuation(Punctuations::OpenSquareBracket), self);
+
+                    let memory_location : MemoryLocationsAst = match self.current_token().kind {
+                        TokenType::MemoryLocation(MemoryLocations::Stack) => {
+                            self.advance_position();
+                            MemoryLocationsAst::Stack
+                        },
+                        TokenType::MemoryLocation(MemoryLocations::Register) => {
+                            self.advance_position();
+
+                            expect_token_with_err!(TokenType::Punctuation(Punctuations::OpenParenthesis), self);
+
+                            let TokenType::Identifiers(Identifiers::Identifier(arg_register)) = self.current_token().kind else {
+                                throw_err!(self, "".to_string());
+                            };
+
+                            self.advance_position();
+
+                            expect_token_with_err!(TokenType::Punctuation(Punctuations::ClosedParenthesis), self);
+
+                            MemoryLocationsAst::Register(arg_register)
+                        },
+                        _ => {
+                            throw_err!(self, "".to_string());
+                        }
+                    };
+                    
+                    expect_token_with_err!(TokenType::Punctuation(Punctuations::ClosedSquareBracket), self);
+
+                    match self.current_token().kind {
+                        TokenType::Punctuation(Punctuations::Comma) => {
+                            self.advance_position();
+                        },
+                        TokenType::Punctuation(Punctuations::ClosedParenthesis) => {}
+                        _ => {
+                            throw_err!(self, "Expected comma or closed parenthesis".to_string());
+                        }
+                    }
+
+                    args.push(FunctionArg { arg_var_type: var_type, arg_name, memory_location });
+                },
+                _ => {
+                    throw_err!(self, "Unknown syntax err".to_string());
+                }
+            };
+        }
 
         self.advance_position();
 
@@ -269,7 +330,7 @@ impl<'a> Parser<'a> {
 
                 self.advance_position();
 
-                let args : Vec<Identifiers> = Vec::new();
+                let mut args : Vec<Expression> = Vec::new();
 
                 loop {
                     match self.current_token().kind {
@@ -278,7 +339,17 @@ impl<'a> Parser<'a> {
                             break;
                         },
                         TokenType::Punctuation(Punctuations::Comma) => {
-                            todo!();
+                            self.advance_position();
+
+                            match self.current_token().kind {
+                                TokenType::Literal(literal) => args.push(Expression::Literal(literal)),
+                                TokenType::Identifiers(identifier) => args.push(Expression::Identifier(identifier)),
+                                _ => panic!()
+                            }
+
+                            self.advance_position();
+
+                            continue;
                         },
                         _ => {
                             throw_err!(self, "Syntax Error".to_string());
@@ -323,6 +394,10 @@ impl<'a> Parser<'a> {
         let tkn = self.program_data.tokens.get(self.position).unwrap().clone(); 
         
         return tkn;
+    }
+
+    pub fn process_asm_instruction(&mut self) -> String {
+        unimplemented!()
     }
 
     pub fn expect_token(&mut self, token_type : TokenType) -> Result<(), ()> {

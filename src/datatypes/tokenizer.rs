@@ -1,4 +1,4 @@
-use crate::datatypes::{ast_statements::{Literal, VariableType}, program_data::ProgramData, token::{BuiltInFunctions, Identifiers, Keywords, Operators, Punctuations, Token, TokenType}};
+use crate::datatypes::{ast_statements::{Literal, VariableType}, program_data::ProgramData, token::{BuiltInFunctions, Identifiers, Keywords, MemoryLocations, Operators, Punctuations, Token, TokenType}};
 
 // Tokenzer struct
 pub struct Tokenizer<'a> {
@@ -48,7 +48,7 @@ impl<'a> Tokenizer<'a> {
         let start_pos = self.position;
 
         match self.current_char() {
-            '\n' | ';' | '(' | ')' | ',' | ':' | '{' | '}' => {
+            '\n' | ';' | '(' | ')' | ',' | '[' | ']' | '{' | '}' => {
                 res = String::from(self.current_char());
                 self.advance(1);
             },
@@ -84,7 +84,7 @@ impl<'a> Tokenizer<'a> {
                 return Some(Token{kind: TokenType::Literal(Literal::String(str)), col: self.col, line: self.line, start_pos, end_pos: self.position});
             },
             _ => {
-                while self.position < self.program_data.source_code.len() && self.current_char().is_whitespace() == false && matches!(self.current_char(), ';' | '(' | ')' | ',') == false {
+                while self.position < self.program_data.source_code.len() && self.current_char().is_whitespace() == false && matches!(self.current_char(), ';' | '(' | ')' | ',' | '[' | ']' | '{' | '}') == false {
                     res.push(self.current_char());
                     self.advance(1);
                 };
@@ -113,18 +113,29 @@ impl<'a> Tokenizer<'a> {
             "}" => {
                 return Some(Token{kind: TokenType::Punctuation(Punctuations::ClosedBraces), ..token_default});
             },
-
             "(" => {
                 return Some(Token{kind: TokenType::Punctuation(Punctuations::OpenParenthesis), ..token_default});
             },
             ")" => {
                 return Some(Token{kind: TokenType::Punctuation(Punctuations::ClosedParenthesis), ..token_default});
             },
+            "[" => {
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::OpenSquareBracket), ..token_default});
+            }
+            "]" => {
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::ClosedSquareBracket), ..token_default});
+            }
             "," => {
                 return Some(Token{kind: TokenType::Punctuation(Punctuations::Comma), ..token_default});
             },
             "bl" => {
                 return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::BranchLinked), ..token_default});
+            },
+            "stack"=> {
+                return Some(Token{kind: TokenType::MemoryLocation(MemoryLocations::Stack), ..token_default});
+            },
+            "reg"=> {
+                return Some(Token{kind: TokenType::MemoryLocation(MemoryLocations::Register), ..token_default});
             },
             "asm" => {
                 return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Assembly), ..token_default});

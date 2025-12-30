@@ -20,6 +20,12 @@ pub enum Identifiers {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum MemoryLocations {
+    Stack,
+    Register
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     EOF,
     Operator(Operators),
@@ -27,7 +33,8 @@ pub enum TokenType {
     Literal(Literal),
     Punctuation(Punctuations),
     BuiltInFunctions(BuiltInFunctions),
-    Identifiers(Identifiers)
+    Identifiers(Identifiers),
+    MemoryLocation(MemoryLocations)
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -47,6 +54,8 @@ pub enum Punctuations {
     ClosedParenthesis,
     OpenBraces,
     ClosedBraces,
+    OpenSquareBracket,
+    ClosedSquareBracket,
     Comma,
     Semicolon
 }

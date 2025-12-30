@@ -1,6 +1,6 @@
 use std::{collections::HashMap, panic};
 
-use crate::datatypes::{ast_statements::{Statement, Statements, VariableDeclaration}, program_data::ProgramData, stack_frame::{StackFrame, StackVariable}};
+use crate::datatypes::{ast_statements::{BuiltInFunctionsAst, CgBranchLinked, CgBuiltInFunctions, CgStatement, CgStatementType, Expression, Function, Literal, Statement, Statements, VariableDeclaration, VariableType}, program_data::ProgramData, stack_frame::{StackFrame, StackVariable}};
 
 pub struct ScopeAnalysis<'a> {
     program_data : &'a mut ProgramData,
@@ -31,7 +31,9 @@ impl<'a> ScopeAnalysis<'a> {
 
                     self.program_data.stack_frames.push(StackFrame::default());
 
-                    self.program_data.functions.insert(func_declaration.name.clone(), stack_frame_index);
+                    self.program_data.functions.insert(func_declaration.name.clone(), Function{first_stack_frame: stack_frame_index, args: func_declaration.args, return_type: func_declaration.return_type});
+
+
 
                     self.scope_stack.push(stack_frame_index);
 
@@ -48,16 +50,13 @@ impl<'a> ScopeAnalysis<'a> {
             }
 
             match current_statement.statement_type.clone() {
+                Statements::Expression(Expression::BuiltInFunction(BuiltInFunctionsAst::BranchLinked(bl))) => {
+                    self.add_statement_to_current_stack_frame(current_statement);
+                },
                 Statements::VariableDeclaration(var_declaration) => {
                     self.add_var_to_stack_frame(&var_declaration);
 
                     self.add_statement_to_current_stack_frame(current_statement);
-
-                    /*if let Some(init_value) = var_declaration.value {
-                        self.add_statement_to_current_stack_frame(CgStatement{
-
-                        });
-                    }*/
                 },
                 Statements::StackFramePop => {
                     self.pop_scope();
@@ -66,18 +65,6 @@ impl<'a> ScopeAnalysis<'a> {
                         current_function = String::default();
                     }
                 },
-                /*Statements::BuiltInFunctions(func) => {
-                    match func {
-                        BuiltInFunctionsAst::Assembly(asm_expression) => {
-                            let asm_code : String = match asm_expression {
-                                Expression::Literal(Literal::String(asm_code)) => asm_code,
-                                _ => {panic!("Invalid shit given to asm func");}
-                            };
-
-                            self.get_current_stack_frame().statements.push(CgStatement { statement_type: CgStatementType::BuiltInFunction(CgBuiltInFunctions::Assembly(asm_code))});
-                        }
-                    }
-                },*/
                 Statements::EOF => {
                     break;
                 },
