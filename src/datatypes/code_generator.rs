@@ -52,10 +52,10 @@ impl<'a> CodeGenerator<'a> {
                     CgBuiltInFunctions::BranchLinked(branch_linked) => {
                         let mut result = String::new();
 
-                        let function_borrow = self.program_data.functions.get(&branch_linked.function_name).unwrap();
+                        let function_args = self.program_data.functions.get(&branch_linked.function_name).unwrap().args.clone();
 
                         let mut arg_mem = 0;
-                        for arg in function_borrow.args.clone() {
+                        for arg in function_args.clone() {
                             if arg.memory_location != MemoryLocationsAst::Stack {
                                 continue;
                             }
@@ -69,9 +69,9 @@ impl<'a> CodeGenerator<'a> {
 
                         let mut arg_stack_offset = 0;
 
-                        for i in 0..function_borrow.args.len() {
+                        for i in 0..function_args.len() {
                             let arg_provided = branch_linked.args.get(i).unwrap();
-                            let arg_expecting = function_borrow.args.get(i).unwrap();
+                            let arg_expecting = function_args.get(i).unwrap();
 
                             match arg_expecting.memory_location.clone() {
                                 MemoryLocationsAst::Register(register) => {
@@ -80,7 +80,8 @@ impl<'a> CodeGenerator<'a> {
                                             result.push_str(&format!("mov {}, #{}\n", register, num));
                                         },
                                         CgExpression::StackVariableIdentifier(identifier) => {
-                                            self.get_stack_variable(stack_frame, identifier);
+                                            todo!();
+                                            let var = self.get_stack_variable(stack_frame, identifier);
 
                                             result.push_str(&format!("mov {}, #{}", register, 10));
                                         },

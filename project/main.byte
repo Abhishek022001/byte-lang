@@ -11,5 +11,5 @@ void : main() {
     i8 var3 = 1;
     i32 exit_code = 0;
 
-    bl(term, exit_code, var);
+    bl(term, 0, 10);
 }

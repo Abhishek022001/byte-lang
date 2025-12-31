@@ -2,7 +2,7 @@
 
 ## Byte Lang currently supports only ARM64 on macOS. Support for x86 and other architectures will be implemented later.
 
-**Byte Lang** is an emerging programming language designed to combine the low-level control of assembly language with the readability and structure of high-level languages. Currently in its early stages, Byte Lang offers a foundational set of commands and features aimed at high performance and clear, efficient programming.
+**Byte Lang** is an programming language designed to combine the low-level control of assembly language with the readability and structure of high-level languages. Currently in its early stages.
 
 ## Features
 
@@ -29,32 +29,23 @@ Since Byte Lang is in its early stages, the installation process involves clonin
    ```
 
 ### Commands
-* run (file location like example.txt)
+* run (file location like example.byte)
 
 ### Example
 ```bash
-number test_var = 0;
-number test_var_2 = 10;
-
-fn printstring() {
-    compare(10, 10)
-    .== {
-        println("printing");
-    };
+void : term(i32 exit_code : [reg(x0)], i32 test_num : [stack]) {
+    asm(format("
+        mov x16, #1
+        svc #0x80
+    "));
 }
 
-loop(5) {
-    printstring();
-}
+void : main() {
+    i32 var = 4;
+    i16 var2 = 2;
+    i8 var3 = 1;
+    i32 exit_code = 0;
 
-compare(10, test_var_2)
-.== {
-    println("equal");
+    bl(term, exit_code, var);
 }
-.!= {
-    println("not equal");
-};
-
-println("hello world");
-term;
 ```
