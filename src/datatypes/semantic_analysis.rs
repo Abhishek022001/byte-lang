@@ -25,9 +25,16 @@ impl<'a> SemanticAnaytis<'a> {
         match statement.statement_type.clone() {
             Statements::VariableDeclaration(var_init) => {
                 if let Some(init_value) = var_init.value {
-                    let init_valid = match (var_init.variable_type, init_value.clone()) {
+                    let init_valid = match (var_init.variable_type.clone(), init_value.clone()) {
                         (VariableType::I8  | VariableType::I16 | VariableType::I32,
                         Expression::Literal(Literal::Number(_))) => true,
+                        (_, Expression::Identifier(Identifiers::Identifier(var_name))) => {
+                            if let Some(var) = self.get_stack_variable(stack_frame, &var_name) {
+                                var.variable_type == var_init.variable_type
+                            } else {
+                                false
+                            }
+                        }
                         _ => false
                     };
 
@@ -123,7 +130,7 @@ impl<'a> SemanticAnaytis<'a> {
         match expression {
             Expression::Literal(literal) => return Some(CgExpression::Literal(literal)),
             Expression::Identifier(Identifiers::Identifier(identifier)) => {
-                if let Some(variable) = self.get_stack_frame_by_index(stack_frame).variables.get(&identifier) {
+                if let Some(variable) = self.get_stack_variable(stack_frame, &identifier) {
                     return Some(CgExpression::StackVariableIdentifier(identifier));
                 }
 
@@ -154,6 +161,20 @@ impl<'a> SemanticAnaytis<'a> {
     pub fn process_all_functions(&mut self) -> () {
         for (function_name, function) in self.program_data.functions.clone().iter() {
             self.process_stack_frame_and_children(function.first_stack_frame.clone());
+        }
+    }
+
+    pub fn get_stack_variable(&self, stack_frame : usize, variable_name : &str) -> Option<StackVariable> {
+        let stack_frame_borrow = self.get_stack_frame_by_index(stack_frame);
+
+        if let Some(var) = stack_frame_borrow.variables.get(variable_name) {
+            return Some(var.clone());
+        } else {
+            if stack_frame_borrow.parent == usize::MAX {
+                return None;
+            } else {
+                return self.get_stack_variable(stack_frame_borrow.parent, variable_name);
+            }
         }
     }
 

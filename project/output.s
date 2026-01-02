@@ -22,8 +22,10 @@ mov w10, 1
 strb w10, [x29, #-9]
 mov w10, 0
 str w10, [x29, #-5]
+ldr w10, [x29, #-5]
+str w10, [x29, #-1]
 sub sp, sp, #16
-ldr x0, [x29, #-5]
+ldr x0, [x29, #-1]
 ldr w10, [x29, #-12]
 str w10, [sp, #-12]
 bl _term

@@ -205,6 +205,7 @@ impl<'a> Parser<'a> {
                                 _ => None
                             }
                         },
+                        TokenType::Identifiers(Identifiers::Identifier(identifier)) => Some(Expression::Identifier(Identifiers::Identifier(identifier))),
                         _ => None
                     };
 
