@@ -2,6 +2,12 @@ use std::fmt::format;
 
 use crate::datatypes::{assembly_instructions::asm::*, ast_statements::{CgBuiltInFunctions, CgExpression, CgStatement, CgStatementType, Expression, Literal, MemoryLocationsAst, VariableType}, program_data::ProgramData, stack_frame::{StackFrame, StackVariable}};
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct StackVariableRef {
+    pub local_offset : usize,
+    pub var: StackVariable
+}
+
 pub struct CodeGenerator<'a> {
     program_data: &'a mut ProgramData,
 }
@@ -18,7 +24,7 @@ impl<'a> CodeGenerator<'a> {
 
                 let variable = stack_frame_borrow.variables.get(&var_init.var_name).unwrap();
 
-                return Ok(self.init_stack_var(variable.variable_type.clone(), var_init.init_value, stack_frame_borrow.stack_mem_allocated - variable.offset - variable.variable_size, REG_FRAME_STACK_PTR));
+                return Ok(self.init_stack_var(variable.variable_type.clone(), var_init.init_value, stack_frame_borrow.stack_mem_allocated - variable.offset - variable.variable_size, STACK_FRAME_PTR, STACK_FRAME_PTR, stack_frame));
 
                 /*match var_init.init_value {
                     Expression::Literal(literal) => {
@@ -65,7 +71,7 @@ impl<'a> CodeGenerator<'a> {
 
                         let aligned_memory = self.align_memory(arg_mem, 16);
 
-                        result.push_str(&format!("sub {}, {}, #{}\n", REG_STACK_PTR, REG_STACK_PTR, aligned_memory));
+                        result.push_str(&format!("sub {}, {}, #{}\n", STACK_PTR, STACK_PTR, aligned_memory));
 
                         let mut arg_stack_offset = 0;
 
@@ -80,26 +86,35 @@ impl<'a> CodeGenerator<'a> {
                                             result.push_str(&format!("mov {}, #{}\n", register, num));
                                         },
                                         CgExpression::StackVariableIdentifier(identifier) => {
-                                            todo!();
-                                            let var = self.get_stack_variable(stack_frame, identifier);
-
-                                            result.push_str(&format!("mov {}, #{}", register, 10));
+                                            result.push_str(&self.load_stack_var_to_reg(identifier, register.as_str(), stack_frame));
                                         },
                                         _ => todo!()
                                     }
                                 },
                                 MemoryLocationsAst::Stack => {
-                                    let var_size = arg_expecting.arg_var_type.get_variable_size();
+                                    match arg_provided {
+                                        CgExpression::Literal(Literal::Number(_)) => {
+                                            let var_size = arg_expecting.arg_var_type.get_variable_size();
 
-                                    arg_stack_offset += var_size;
+                                            arg_stack_offset += var_size;
 
-                                    result.push_str(&self.init_stack_var(arg_expecting.arg_var_type.clone(), arg_provided.clone(), aligned_memory - arg_stack_offset, REG_STACK_PTR));
+                                            result.push_str(&self.init_stack_var(arg_expecting.arg_var_type.clone(), arg_provided.clone(), aligned_memory - arg_stack_offset, STACK_PTR, STACK_FRAME_PTR, stack_frame));
+                                        },
+                                        CgExpression::StackVariableIdentifier(var) => {
+                                            let var_size = arg_expecting.arg_var_type.get_variable_size();
+
+                                            arg_stack_offset += var_size;
+
+                                            result.push_str(&self.init_stack_var(arg_expecting.arg_var_type.clone(), arg_provided.clone(), aligned_memory - arg_stack_offset, STACK_PTR, STACK_FRAME_PTR, stack_frame));
+                                        },
+                                        _ => unreachable!()
+                                    }
                                 }
                                 _ => todo!()
                             }
                         }
 
-                        result.push_str(&format!("bl _{}\nadd {}, {}, #{}\n", branch_linked.function_name, REG_STACK_PTR, REG_STACK_PTR, aligned_memory));
+                        result.push_str(&format!("bl _{}\nadd {}, {}, #{}\n", branch_linked.function_name, STACK_PTR, STACK_PTR, aligned_memory));
 
                         return Ok(result);
                     },
@@ -117,15 +132,41 @@ impl<'a> CodeGenerator<'a> {
 
     // ASSEMBLY INSTRUCTION WRAPPERS
     
-    pub fn init_stack_var(&self, variable_type : VariableType, initial_value : CgExpression, var_stack_loc : usize, stack_ptr : &str) -> String {
+    pub fn init_stack_var(&mut self, variable_type : VariableType, initial_value : CgExpression, var_stack_loc : usize, store_ptr : &str, load_ptr : &str, stack_frame : usize) -> String {
         let ret_str = match (variable_type, initial_value) {
-            (VariableType::I32, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", REG_TEMP_STR_32, num, INST_STR_32, REG_TEMP_STR_32, stack_ptr, var_stack_loc),
-            (VariableType::I16, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", REG_TEMP_STR_16, num, INST_STR_16, REG_TEMP_STR_16, stack_ptr, var_stack_loc),
-            (VariableType::I8, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", REG_TEMP_STR_8, num, INST_STR_8, REG_TEMP_STR_8, stack_ptr, var_stack_loc),
+            (VariableType::I32, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_32, num, STORE_32, TEMP_32, store_ptr, var_stack_loc),
+            (VariableType::I16, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_16, num, STORE_16, TEMP_16, store_ptr, var_stack_loc),
+            (VariableType::I8, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_8, num, STORE_8, TEMP_8, store_ptr, var_stack_loc),
+            (VariableType::I8, CgExpression::StackVariableIdentifier(identifier)) => {
+                let var = self.get_stack_variable(stack_frame, &identifier, 0);
+
+                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_SIGNED_8, TEMP_8, load_ptr, var.local_offset, STORE_8, TEMP_8, store_ptr, var_stack_loc)
+            },
+            (VariableType::I16, CgExpression::StackVariableIdentifier(identifier)) => {
+                let var = self.get_stack_variable(stack_frame, &identifier, 0);
+
+                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_SIGNED_16, TEMP_16, load_ptr, var.local_offset, STORE_16, TEMP_16, store_ptr, var_stack_loc)
+            },
+            (VariableType::I32, CgExpression::StackVariableIdentifier(identifier)) => {
+                let var = self.get_stack_variable(stack_frame, &identifier, 0);
+
+                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_SIGNED_32, TEMP_32, load_ptr, var.local_offset, STORE_32, TEMP_32, store_ptr, var_stack_loc)
+            }
             _ => unreachable!()
         };
 
         return ret_str;
+    }
+
+    pub fn load_stack_var_to_reg(&mut self, var_name : &String, register : &str, stack_frame : usize) -> String {
+        let var = self.get_stack_variable(stack_frame, var_name, 0);
+
+        return match var.var.variable_type {
+            VariableType::I8 => format!("{} {}, [{}, #-{}]\n", LOAD_SIGNED_8, register, STACK_FRAME_PTR, var.local_offset),
+            VariableType::I16 => format!("{} {}, [{}, #-{}]\n", LOAD_SIGNED_16, register, STACK_FRAME_PTR, var.local_offset),
+            VariableType::I32 => format!("{} {}, [{}, #-{}]\n", LOAD_SIGNED_32, register, STACK_FRAME_PTR, var.local_offset),
+            _ => unreachable!()
+        }
     }
 
     // END
@@ -186,8 +227,21 @@ impl<'a> CodeGenerator<'a> {
         return result;
     }
 
-    pub fn get_stack_variable(&mut self, stack_frame : usize, var_name : &String) -> &'_ StackVariable {
-        return self.get_stack_frame_by_index(stack_frame).variables.get(var_name).unwrap();
+    pub fn get_stack_variable(&mut self, stack_frame : usize, var_name : &String, offset : usize) -> StackVariableRef {
+        let stack_frame_ref = self.get_stack_frame_by_index(stack_frame);
+
+        match stack_frame_ref.variables.get(var_name) {
+            Some(refrence) => {
+                return StackVariableRef { local_offset: offset + (stack_frame_ref.stack_mem_allocated - refrence.offset - refrence.variable_size), var: refrence.clone() };
+            },
+            None => {
+                if stack_frame_ref.parent == usize::MAX {
+                    panic!();
+                } else {
+                    return self.get_stack_variable(stack_frame_ref.parent, var_name, offset + (stack_frame_ref.stack_mem_allocated));
+                }
+            }
+        }
     }
 
     pub fn traverse_stack_frame_children(&mut self, stack_frame_index : usize) -> String {
