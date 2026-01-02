@@ -107,23 +107,53 @@ impl<'a> CodeGenerator<'a> {
     
     pub fn init_stack_var(&mut self, variable_type : VariableType, initial_value : CgExpression, var_stack_loc : usize, store_ptr : &str, load_ptr : &str, stack_frame : usize) -> String {
         let ret_str = match (variable_type, initial_value) {
+            (VariableType::I64, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_64, num, STORE_64, TEMP_64, store_ptr, var_stack_loc),
             (VariableType::I32, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_32, num, STORE_32, TEMP_32, store_ptr, var_stack_loc),
-            (VariableType::I16, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_16, num, STORE_16, TEMP_16, store_ptr, var_stack_loc),
-            (VariableType::I8, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_8, num, STORE_8, TEMP_8, store_ptr, var_stack_loc),
+            (VariableType::I16, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_32, num, STORE_16, TEMP_32, store_ptr, var_stack_loc),
+            (VariableType::I8, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_32, num, STORE_8, TEMP_32, store_ptr, var_stack_loc),
+            (VariableType::U64, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_64, num, STORE_64, TEMP_64, store_ptr, var_stack_loc),
+            (VariableType::U32, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_32, num, STORE_32, TEMP_32, store_ptr, var_stack_loc),
+            (VariableType::U16, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_32, num, STORE_16, TEMP_32, store_ptr, var_stack_loc),
+            (VariableType::U8, CgExpression::Literal(Literal::Number(num))) => format!("mov {}, {}\n{} {}, [{}, #-{}]\n", TEMP_32, num, STORE_8, TEMP_32, store_ptr, var_stack_loc),
             (VariableType::I8, CgExpression::StackVariableIdentifier(identifier)) => {
                 let var = self.get_stack_variable(stack_frame, &identifier, 0);
 
-                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_SIGNED_8, TEMP_8, load_ptr, var.local_offset, STORE_8, TEMP_8, store_ptr, var_stack_loc)
+                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_SIGNED_8, TEMP_32, load_ptr, var.local_offset, STORE_8, TEMP_32, store_ptr, var_stack_loc)
             },
             (VariableType::I16, CgExpression::StackVariableIdentifier(identifier)) => {
                 let var = self.get_stack_variable(stack_frame, &identifier, 0);
 
-                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_SIGNED_16, TEMP_16, load_ptr, var.local_offset, STORE_16, TEMP_16, store_ptr, var_stack_loc)
+                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_SIGNED_16, TEMP_32, load_ptr, var.local_offset, STORE_16, TEMP_32, store_ptr, var_stack_loc)
             },
             (VariableType::I32, CgExpression::StackVariableIdentifier(identifier)) => {
                 let var = self.get_stack_variable(stack_frame, &identifier, 0);
 
-                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_SIGNED_32, TEMP_32, load_ptr, var.local_offset, STORE_32, TEMP_32, store_ptr, var_stack_loc)
+                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_SIGNED_32, TEMP_64, load_ptr, var.local_offset, STORE_32, TEMP_32, store_ptr, var_stack_loc)
+            },
+            (VariableType::I64, CgExpression::StackVariableIdentifier(identifier)) => {
+                let var = self.get_stack_variable(stack_frame, &identifier, 0);
+
+                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_SIGNED_64, TEMP_64, load_ptr, var.local_offset, STORE_64, TEMP_64, store_ptr, var_stack_loc)
+            },
+            (VariableType::U8, CgExpression::StackVariableIdentifier(identifier)) => {
+                let var = self.get_stack_variable(stack_frame, &identifier, 0);
+
+                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_UNSIGNED_8, TEMP_32, load_ptr, var.local_offset, STORE_8, TEMP_32, store_ptr, var_stack_loc)
+            },
+            (VariableType::U16, CgExpression::StackVariableIdentifier(identifier)) => {
+                let var = self.get_stack_variable(stack_frame, &identifier, 0);
+
+                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_UNSIGNED_16, TEMP_32, load_ptr, var.local_offset, STORE_16, TEMP_32, store_ptr, var_stack_loc)
+            },
+            (VariableType::U32, CgExpression::StackVariableIdentifier(identifier)) => {
+                let var = self.get_stack_variable(stack_frame, &identifier, 0);
+
+                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_UNSIGNED_32, TEMP_32, load_ptr, var.local_offset, STORE_32, TEMP_32, store_ptr, var_stack_loc)
+            },
+            (VariableType::U64, CgExpression::StackVariableIdentifier(identifier)) => {
+                let var = self.get_stack_variable(stack_frame, &identifier, 0);
+
+                format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_UNSIGNED_64, TEMP_64, load_ptr, var.local_offset, STORE_64, TEMP_64, store_ptr, var_stack_loc)
             }
             _ => todo!()
         };
@@ -138,6 +168,11 @@ impl<'a> CodeGenerator<'a> {
             VariableType::I8 => format!("{} {}, [{}, #-{}]\n", LOAD_SIGNED_8, register, STACK_FRAME_PTR, var.local_offset),
             VariableType::I16 => format!("{} {}, [{}, #-{}]\n", LOAD_SIGNED_16, register, STACK_FRAME_PTR, var.local_offset),
             VariableType::I32 => format!("{} {}, [{}, #-{}]\n", LOAD_SIGNED_32, register, STACK_FRAME_PTR, var.local_offset),
+            VariableType::I64 => format!("{} {}, [{}, #-{}]\n", LOAD_SIGNED_64, register, STACK_FRAME_PTR, var.local_offset),
+            VariableType::U8 => format!("{} {}, [{}, #-{}]\n", LOAD_UNSIGNED_8, register, STACK_FRAME_PTR, var.local_offset),
+            VariableType::U16 => format!("{} {}, [{}, #-{}]\n", LOAD_UNSIGNED_16, register, STACK_FRAME_PTR, var.local_offset),
+            VariableType::U32 => format!("{} {}, [{}, #-{}]\n", LOAD_UNSIGNED_32, register, STACK_FRAME_PTR, var.local_offset),
+            VariableType::U64 => format!("{} {}, [{}, #-{}]\n", LOAD_UNSIGNED_64, register, STACK_FRAME_PTR, var.local_offset),
             _ => todo!()
         }
     }

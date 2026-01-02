@@ -159,12 +159,17 @@ impl<'a> Tokenizer<'a> {
             "asm" => {
                 return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Assembly), ..token_default});
             }
-            "i32" | "i16" | "i8" | "void" => {
+            "i64" | "i32" | "i16" | "i8" | "u64" | "u32" | "u16" | "u8" | "void" => {
                 return Some(Token{kind: TokenType::Keyword(Keywords::VariableType(
                     match &res as &str {
+                        "i64" => VariableType::I64,
                         "i32" => VariableType::I32,
                         "i16" => VariableType::I16,
                         "i8" => VariableType::I8,
+                        "u64" => VariableType::U64,
+                        "u32" => VariableType::U32,
+                        "u16" => VariableType::U16,
+                        "u8" => VariableType::U8,
                         "void" => VariableType::Void,
                         _ => unreachable!()
                     }

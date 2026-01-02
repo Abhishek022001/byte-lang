@@ -116,9 +116,10 @@ impl Format {
                         }
 
                         match (type_str.as_str(), arg.kind) {
-                            ("i32", TokenType::Literal(Literal::Number(num))) => {
+                            ("i64" | "i32" | "i16" | "i8" | "u64" | "u32" | "u16" | "u8", TokenType::Literal(Literal::Number(num))) => {
                                 result.push_str(&num.to_string());
-                            }
+                            },
+                            
                             _ => {
                                 panic!("Invalid Format");
                             }
@@ -169,6 +170,11 @@ pub enum VariableType {
     I8,
     I16,
     I32,
+    I64,
+    U8,
+    U16,
+    U32,
+    U64,
     Void
 }
 
@@ -179,6 +185,11 @@ impl VariableType {
             VariableType::I8 => 1,
             VariableType::I16 => 2,
             VariableType::I32 => 4,
+            VariableType::I64 => 8,
+            VariableType::U8 => 1,
+            VariableType::U16 => 2,
+            VariableType::U32 => 4,
+            VariableType::U64 => 8,
             VariableType::Void => 0
         }
     }

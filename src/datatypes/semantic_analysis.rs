@@ -26,7 +26,7 @@ impl<'a> SemanticAnaytis<'a> {
             Statements::VariableDeclaration(var_init) => {
                 if let Some(init_value) = var_init.value {
                     let init_valid = match (var_init.variable_type.clone(), init_value.clone()) {
-                        (VariableType::I8  | VariableType::I16 | VariableType::I32,
+                        (VariableType::I8  | VariableType::I16 | VariableType::I32 | VariableType::I64 | VariableType::U8 | VariableType::U16 | VariableType::U32 | VariableType::U64,
                         Expression::Literal(Literal::Number(_))) => true,
                         (_, Expression::Identifier(Identifiers::Identifier(var_name))) => {
                             if let Some(var) = self.get_stack_variable(stack_frame, &var_name) {

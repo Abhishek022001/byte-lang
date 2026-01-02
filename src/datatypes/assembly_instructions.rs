@@ -3,8 +3,6 @@ use crate::datatypes::ast_statements::CgExpression;
 pub mod asm {
     pub const TEMP_64: &str = "x10";
     pub const TEMP_32: &str = "w10";
-    pub const TEMP_16: &str = "w10";
-    pub const TEMP_8: &str = "w10";
 
     pub const STACK_PTR: &str = "sp";
     pub const STACK_FRAME_PTR: &str = "x29";
@@ -15,8 +13,13 @@ pub mod asm {
     pub const STORE_8: &str = "strb";
 
     pub const LOAD_SIGNED_64: &str = "ldr";
-    pub const LOAD_SIGNED_32: &str = "ldr";
-    pub const LOAD_SIGNED_16: &str = "ldrh";
-    pub const LOAD_SIGNED_8: &str = "ldrb";
+    pub const LOAD_SIGNED_32: &str = "ldrsw";
+    pub const LOAD_SIGNED_16: &str = "ldrsh";
+    pub const LOAD_SIGNED_8:  &str = "ldrsb";
+
+    pub const LOAD_UNSIGNED_64: &str = "ldr";
+    pub const LOAD_UNSIGNED_32: &str = "ldr";
+    pub const LOAD_UNSIGNED_16: &str = "ldrh";
+    pub const LOAD_UNSIGNED_8: &str = "ldrb";
 
 }

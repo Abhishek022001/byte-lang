@@ -1,4 +1,4 @@
-void : term(i32 exit_code : [reg(x0)], i32 test_num : [stack]) {
+void : term(i64 exit_code : [reg(x0)], i32 test_num : [stack], u8 test_unsigned : [stack]) {
     asm(format("mov x16, #1\nsvc #0x80\n"));
 }
 
@@ -6,8 +6,11 @@ void : main() {
     i32 var = 5;
     i16 var2 = 2;
     i8 var3 = 1;
-    i32 exit_code = 0;
-    i32 exit_code_clone = exit_code;
+    i64 exit_code = 0;
+    i64 exit_code_clone = exit_code;
+    u64 test = 10;
+    u8 something = 30;
+    u8 something_clone = something;
 
-    bl(term, exit_code_clone, var);
+    bl(term, exit_code_clone, var, something_clone);
 }
