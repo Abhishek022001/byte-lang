@@ -111,7 +111,33 @@ impl<'a> ScopeAnalysis<'a> {
         return;
     }
 
+    pub fn get_stack_frame_by_index(&mut self, stack_frame : usize) -> &'_ StackFrame {
+        return self.program_data.stack_frames.get(stack_frame).unwrap();
+    }
+
+    pub fn check_if_var_exists(&mut self, var : &VariableDeclaration) -> bool {
+        let mut current_stack_frame_index : usize = self.get_current_stack_frame_index();
+
+        while current_stack_frame_index != usize::MAX {
+            let stack_frame_borrow = self.get_stack_frame_by_index(current_stack_frame_index);
+
+            if let Some(_) = stack_frame_borrow.variables.get(&var.name) {
+                return true;
+            }
+
+            current_stack_frame_index = stack_frame_borrow.parent;
+        }
+
+        return false;
+    }
+
     pub fn add_var_to_stack_frame(&mut self, var : &VariableDeclaration) -> () {
+        if self.check_if_var_exists(var) == true {
+            self.throw_err(&format!("Duplicate variable: {}", var.name));
+
+            return;
+        }
+
         let current_stack_frame = self.get_current_stack_frame();
 
         current_stack_frame.variables.insert(var.name.clone(), StackVariable{variable_type: var.variable_type.clone(), variable_size: var.variable_type.get_variable_size(), offset: current_stack_frame.stack_mem_allocated.clone()});
