@@ -182,6 +182,10 @@ impl<'a> CodeGenerator<'a> {
     pub fn initialize_stack_frame(&mut self, stack_frame : usize) -> String {
         let mem = self.get_stack_frame_by_index(stack_frame).stack_mem_allocated.clone();
 
+        if mem == 0 {
+            return format!("stp x29, x30, [sp, #-16]!\nmov x29, sp\n");
+        }
+
         let aligned_mem = self.align_memory(mem, 16);
 
         self.get_stack_frame_by_index_mut(stack_frame).stack_mem_allocated = aligned_mem;
@@ -191,6 +195,10 @@ impl<'a> CodeGenerator<'a> {
 
     pub fn return_stack_frame(&mut self, stack_frame : usize) -> String {
         let stack_frame_borrow = self.get_stack_frame_by_index(stack_frame);
+
+        if stack_frame_borrow.stack_mem_allocated == 0 {
+            return format!("ldp x29, x30, [sp], #16\nret\n");
+        }
 
         return format!("add sp, sp, #{}\nldp x29, x30, [sp], #16\nret\n", stack_frame_borrow.stack_mem_allocated);
     }
