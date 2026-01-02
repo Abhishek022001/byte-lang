@@ -16,7 +16,10 @@
 
 Since Byte Lang is in its early stages, the installation process involves cloning the repository and building from source:
 
-1. **Download the compiler from our release page**:
+1. **Clone**:
+   ```bash
+   git clone https://github.com/morcules/byte-lang
+   ```
 
 2. **Navigate to the Directory**:
    ```bash
@@ -30,6 +33,7 @@ Since Byte Lang is in its early stages, the installation process involves clonin
 
 ### Commands
 * run (file location like example.byte)
+* build (file location like example.byte)
 
 ### Example
 ```bash
