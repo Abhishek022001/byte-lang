@@ -2,6 +2,14 @@ use std::{collections::HashMap, panic};
 
 use crate::datatypes::{ast_statements::{BuiltInFunctionsAst, CgBranchLinked, CgBuiltInFunctions, CgExpression, CgStatement, CgStatementType, CgVariableInitialization, Expression, Literal, Statement, Statements, VariableType}, program_data::ProgramData, stack_frame::{StackFrame, StackVariable}, token::{BuiltInFunctions, Identifiers}};
 
+macro_rules! throw_err {
+    ($self:expr, $error:expr) => {
+        $self.throw_err($error);
+
+        return;
+    };
+}
+
 pub struct SemanticAnaytis<'a> {
     program_data : &'a mut ProgramData
 }
@@ -13,7 +21,7 @@ impl<'a> SemanticAnaytis<'a> {
         }
     }
 
-    pub fn process_statement(&mut self, statement : &'_ Statement, stack_frame : usize) -> Result<Option<CgStatement>, String> {
+    pub fn process_statement(&mut self, statement : &'_ Statement, stack_frame : usize) -> () {
         match statement.statement_type.clone() {
             Statements::VariableDeclaration(var_init) => {
                 if let Some(init_value) = var_init.value {
@@ -24,29 +32,19 @@ impl<'a> SemanticAnaytis<'a> {
                     };
 
                     if !init_valid {
-                        return Err(String::from("Invalid var Declaration"));
+                        throw_err!(self, "Invalid var declaration");
                     }
 
                     let cg_val = self.expression_to_cg(stack_frame, init_value);
 
-                    self.add_cg_statement_to_stack_frame(stack_frame, CgStatement{statement_type: CgStatementType::VariableInitialization(CgVariableInitialization{init_value: cg_val, var_name: var_init.name, stack_frame: stack_frame})})
+                    if let Some(cg_val_unwrapped) = cg_val {
+                        self.add_cg_statement_to_stack_frame(stack_frame, CgStatement{statement_type: CgStatementType::VariableInitialization(CgVariableInitialization{init_value: cg_val_unwrapped, var_name: var_init.name, stack_frame: stack_frame})})
+                    } else {
+                        return;
+                    }
                 };
 
-                /*let var_stack_frame = self.get_stack_frame_by_index(var_init.stack_frame);
-                let var_in_stack_frame = var_stack_frame.variables.get(&var_init.var_name).unwrap();
-
-                let init_valid = match (var_in_stack_frame.variable_type.clone(), var_init) {
-                    (VariableType::I8  | VariableType::I16 | VariableType::I32,
-                    Expression::Literal(Literal::Number(_))) => true,
-                    _ => false
-                };
-
-                if !init_valid {
-                    return Err(String::from("Invalid var Declaration"));
-                    //return Err(String::from(format!("Invalid Variable Declaration at line {} and col {}: {:?}", statement.line, statement.col, self.untokenized_input.get(statement.start_pos..statement.end_pos).unwrap()))); 
-                }*/
-
-                return Ok(None);
+                return;
             },
             Statements::Expression(Expression::BuiltInFunction(func)) => {
                 match func {
@@ -58,7 +56,7 @@ impl<'a> SemanticAnaytis<'a> {
                         let bl_function = self.program_data.functions.get(&branch_linked.function_name).unwrap().clone();
 
                         if branch_linked.args.len() != bl_function.args.len() {
-                            panic!("")
+                            throw_err!(self, "Invalid arg length");
                         }
 
                         let mut cg_args : Vec<CgExpression> = Vec::new();
@@ -67,30 +65,32 @@ impl<'a> SemanticAnaytis<'a> {
                         while i < branch_linked.args.len() {
                             let cg_expression = self.expression_to_cg(stack_frame, branch_linked.args.get(i).unwrap().clone());
 
-                            let valid : bool = match (cg_expression.clone(), bl_function.args.get(i).unwrap().arg_var_type.clone()) {
-                                (
-                                    CgExpression::Literal(Literal::Number(_)),
-                                    VariableType::I8 | VariableType::I16 | VariableType::I32
-                                ) => true,
-                                (
-                                    CgExpression::StackVariableIdentifier(identifier),
-                                    _
-                                ) => {
-                                    match self.borrow_stack_variable_with_sf_index(stack_frame, identifier) {
-                                        Some(var) => {
-                                            var.variable_type == bl_function.args.get(i).unwrap().arg_var_type
-                                        },
-                                        None => false
-                                    }
-                                },
-                                _ => false
-                            };
+                            if let Some(cg_expression_unwrapped) = cg_expression {
+                                let valid : bool = match (cg_expression_unwrapped.clone(), bl_function.args.get(i).unwrap().arg_var_type.clone()) {
+                                    (
+                                        CgExpression::Literal(Literal::Number(_)),
+                                        VariableType::I8 | VariableType::I16 | VariableType::I32
+                                    ) => true,
+                                    (
+                                        CgExpression::StackVariableIdentifier(identifier),
+                                        _
+                                    ) => {
+                                        match self.borrow_stack_variable_with_sf_index(stack_frame, identifier) {
+                                            Some(var) => {
+                                                var.variable_type == bl_function.args.get(i).unwrap().arg_var_type
+                                            },
+                                            None => false
+                                        }
+                                    },
+                                    _ => false
+                                };
 
-                            if !valid {
-                                panic!();
+                                if !valid {
+                                    throw_err!(self, "Invalid args in bl");
+                                }
+
+                                cg_args.push(cg_expression_unwrapped);
                             }
-
-                            cg_args.push(cg_expression);
 
                             i += 1;
                         }
@@ -103,7 +103,9 @@ impl<'a> SemanticAnaytis<'a> {
                             Expression::BuiltInFunction(BuiltInFunctionsAst::Format(format)) => {
                                 format.parse()
                             },
-                            _ => {panic!("Invalid shit given to asm func");}
+                            _ => {
+                                throw_err!(self, "Invalid arg given to asm func");
+                            }
                         };
 
                         self.add_cg_statement_to_stack_frame(stack_frame, CgStatement{ statement_type: CgStatementType::BuiltInFunction(CgBuiltInFunctions::Assembly(asm_code))});
@@ -114,30 +116,32 @@ impl<'a> SemanticAnaytis<'a> {
             _ => ()
         };
 
-        return Ok(None);
+        return;
     }
 
-    pub fn expression_to_cg(&mut self, stack_frame : usize, expression : Expression) -> CgExpression {
+    pub fn expression_to_cg(&mut self, stack_frame : usize, expression : Expression) -> Option<CgExpression> {
         match expression {
-            Expression::Literal(literal) => return CgExpression::Literal(literal),
+            Expression::Literal(literal) => return Some(CgExpression::Literal(literal)),
             Expression::Identifier(Identifiers::Identifier(identifier)) => {
                 if let Some(variable) = self.get_stack_frame_by_index(stack_frame).variables.get(&identifier) {
-                    return CgExpression::StackVariableIdentifier(identifier);
+                    return Some(CgExpression::StackVariableIdentifier(identifier));
                 }
 
-                panic!()
+                self.throw_err("Variable not found");
+
+                return None;
             },
-            _ => panic!()
+            _ => {
+                self.throw_err("Invalid Expression");
+
+                return None;
+            }
         }
     }
 
     pub fn process_stack_frame(&mut self, stack_frame : usize) -> () {
         for statement in self.get_stack_frame_by_index(stack_frame).statements.clone().iter() {
-            let analyzed_statement_err = self.process_statement(statement, stack_frame);
-
-            if let Err(err) = analyzed_statement_err {
-                panic!("{:?}", err);
-            }
+            self.process_statement(statement, stack_frame);
         }
 
         return;
@@ -165,6 +169,10 @@ impl<'a> SemanticAnaytis<'a> {
         }
 
         self.process_stack_frame(stack_frame_index);
+    }
+
+    pub fn throw_err(&mut self, err : &str) -> () {
+        self.program_data.errors.push(String::from(err));
     }
 
     pub fn borrow_stack_variable_with_sf_index(&self, stack_frame : usize, variable_name : String) -> Option<&'_ StackVariable> {

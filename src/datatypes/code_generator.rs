@@ -17,41 +17,14 @@ impl<'a> CodeGenerator<'a> {
         return Self{program_data};
     }
 
-    pub fn generate_statement(&mut self, statement : &CgStatement, stack_frame : usize) -> Result<String, String> {
+    pub fn generate_statement(&mut self, statement : &CgStatement, stack_frame : usize) -> String {
         match statement.statement_type.clone() {
             CgStatementType::VariableInitialization(var_init) => {
                 let stack_frame_borrow = self.get_stack_frame_by_index(var_init.stack_frame);
 
                 let variable = stack_frame_borrow.variables.get(&var_init.var_name).unwrap();
 
-                return Ok(self.init_stack_var(variable.variable_type.clone(), var_init.init_value, stack_frame_borrow.stack_mem_allocated - variable.offset - variable.variable_size, STACK_FRAME_PTR, STACK_FRAME_PTR, stack_frame));
-
-                /*match var_init.init_value {
-                    Expression::Literal(literal) => {
-                        match literal {
-                            Literal::Number(num_literal) => {
-                                match variable.variable_type {
-                                    VariableType::I32 => {
-                                        return Ok(format!("mov w10, #{}\nstr w10, [x29, #-{}]\n", num_literal, stack_frame_borrow.stack_mem_allocated - variable.offset - variable.variable_size));
-                                    },
-                                    VariableType::I16 => {
-                                        return Ok(format!("mov w10, #{}\nstrh w10, [x29, #-{}]\n", num_literal, stack_frame_borrow.stack_mem_allocated - variable.offset - variable.variable_size));
-                                    },
-                                    VariableType::I8 => {
-                                        return Ok(format!("mov w10, #{}\nstrb w10, [x29, #-{}]\n", num_literal, stack_frame_borrow.stack_mem_allocated - variable.offset - variable.variable_size));
-                                    },
-                                    _ => {
-                                        return Err("Error init var".to_string());
-                                    }
-                                }
-                            },
-                            _ => {
-                                return Err("Not supported Literal".to_string());
-                            }
-                        }
-                    },
-                    _ => unimplemented!()
-                }*/
+                return self.init_stack_var(variable.variable_type.clone(), var_init.init_value, stack_frame_borrow.stack_mem_allocated - variable.offset - variable.variable_size, STACK_FRAME_PTR, STACK_FRAME_PTR, stack_frame);
             },
             CgStatementType::BuiltInFunction(built_in_function) => {
                 match built_in_function {
@@ -116,10 +89,10 @@ impl<'a> CodeGenerator<'a> {
 
                         result.push_str(&format!("bl _{}\nadd {}, {}, #{}\n", branch_linked.function_name, STACK_PTR, STACK_PTR, aligned_memory));
 
-                        return Ok(result);
+                        return result;
                     },
                     CgBuiltInFunctions::Assembly(assembly_code) => {
-                        return Ok(assembly_code);
+                        return assembly_code;
                     }
                 }
             }
@@ -152,7 +125,7 @@ impl<'a> CodeGenerator<'a> {
 
                 format!("{} {}, [{}, #-{}]\n{} {}, [{}, #-{}]\n", LOAD_SIGNED_32, TEMP_32, load_ptr, var.local_offset, STORE_32, TEMP_32, store_ptr, var_stack_loc)
             }
-            _ => unreachable!()
+            _ => todo!()
         };
 
         return ret_str;
@@ -165,7 +138,7 @@ impl<'a> CodeGenerator<'a> {
             VariableType::I8 => format!("{} {}, [{}, #-{}]\n", LOAD_SIGNED_8, register, STACK_FRAME_PTR, var.local_offset),
             VariableType::I16 => format!("{} {}, [{}, #-{}]\n", LOAD_SIGNED_16, register, STACK_FRAME_PTR, var.local_offset),
             VariableType::I32 => format!("{} {}, [{}, #-{}]\n", LOAD_SIGNED_32, register, STACK_FRAME_PTR, var.local_offset),
-            _ => unreachable!()
+            _ => todo!()
         }
     }
 
@@ -193,14 +166,9 @@ impl<'a> CodeGenerator<'a> {
         result.push_str(&self.initialize_stack_frame(stack_frame));
 
         for statement in self.get_stack_frame_by_index(stack_frame).cg_statements.clone().iter() {
-            let analyzed_statement_err = self.generate_statement(statement, stack_frame);
+            let asm_code = self.generate_statement(statement, stack_frame);
 
-            match analyzed_statement_err {
-                Err(err) => panic!("{:?}", err),
-                Ok(asm_code) => {
-                    result.push_str(&asm_code);
-                }
-            }
+            result.push_str(&asm_code);
         }
 
         result.push_str(&self.return_stack_frame(stack_frame));
@@ -236,7 +204,7 @@ impl<'a> CodeGenerator<'a> {
             },
             None => {
                 if stack_frame_ref.parent == usize::MAX {
-                    panic!();
+                    unreachable!();
                 } else {
                     return self.get_stack_variable(stack_frame_ref.parent, var_name, offset + (stack_frame_ref.stack_mem_allocated));
                 }

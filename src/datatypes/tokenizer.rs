@@ -75,8 +75,27 @@ impl<'a> Tokenizer<'a> {
                 self.advance(1);
 
                 while self.position < self.program_data.source_code.len() && self.current_char() != '"' {
-                    str.push(self.current_char());
-                    self.advance(1);
+                    match self.current_char() {
+                        '"' => {
+                            break;
+                        },
+                        '\\' => {
+                            self.advance(1);
+                            let new_char = match self.current_char() {
+                                'n' => '\n',
+                                '\\' => '\\',
+                                _ => ' '
+                            };
+
+                            str.push(new_char);
+
+                            self.advance(1);
+                        },
+                        _ => {
+                            str.push(self.current_char());
+                            self.advance(1);
+                        }
+                    }
                 };
 
                 self.advance(1);

@@ -1,8 +1,5 @@
 void : term(i32 exit_code : [reg(x0)], i32 test_num : [stack]) {
-    asm(format("
-        mov x16, #1
-        svc #0x80
-    "));
+    asm(format("mov x16, #1\nsvc #0x80\n"));
 }
 
 void : main() {

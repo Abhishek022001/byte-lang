@@ -2,6 +2,14 @@ use std::{collections::HashMap, panic};
 
 use crate::datatypes::{ast_statements::{BuiltInFunctionsAst, CgBranchLinked, CgBuiltInFunctions, CgStatement, CgStatementType, Expression, Function, Literal, Statement, Statements, VariableDeclaration, VariableType}, program_data::ProgramData, stack_frame::{StackFrame, StackVariable}};
 
+macro_rules! throw_err {
+    ($self:expr, $error:expr) => {
+        $self.throw_err($error);
+
+        continue;
+    };
+}
+
 pub struct ScopeAnalysis<'a> {
     program_data : &'a mut ProgramData,
     position : usize,
@@ -24,7 +32,7 @@ impl<'a> ScopeAnalysis<'a> {
             if current_function.is_empty() {
                 if let Statements::FunctionDeclaration(func_declaration) = current_statement.statement_type.clone() {
                     if self.program_data.functions.get(&func_declaration.name).is_some() {
-                        panic!("Duplicate function: {}", func_declaration.name);
+                        throw_err!(self, &format!("Duplicate function: {}", func_declaration.name));
                     }
 
                     let stack_frame_index = self.program_data.stack_frames.len();
@@ -43,9 +51,7 @@ impl<'a> ScopeAnalysis<'a> {
                 } else if current_statement.statement_type == Statements::EOF {
                     break;
                 } else {
-                    print!("Scope: {:?}\nCurrent Function: {:?}\nStatement: {:?}\n", self.scope_stack, current_function, current_statement);
-
-                    panic!("Found statement outside function");
+                    throw_err!(self, &format!("Found statement outside function: Statement {:?}", current_statement));
                 }
             }
 
@@ -87,6 +93,16 @@ impl<'a> ScopeAnalysis<'a> {
         self.get_current_stack_frame().children.push(new_frame_index);
 
         self.scope_stack.push(new_frame_index);
+
+        return;
+    }
+
+    pub fn throw_err(&mut self, err : &str) -> () {
+        self.program_data.errors.push(String::from(err));
+
+        self.advance_position();
+
+        return;
     }
 
     pub fn add_statement_to_current_stack_frame(&mut self, statement : Statement) -> () {

@@ -210,10 +210,18 @@ fn compile_file() {
     let mut scope_analysis = ScopeAnalysis::new(&mut program_data);
     scope_analysis.process_all();
 
+    if program_data.errors.len() > 0 {
+        panic!("Errors: {:?}\n", program_data.errors);
+    }
+
     print!("Functions: {:?}\nStack Frames: {:?}\n", program_data.functions, program_data.stack_frames);
 
     let mut semantic_analysis = SemanticAnaytis::new(&mut program_data);
     semantic_analysis.process_all_functions();
+
+    if program_data.errors.len() > 0 {
+        panic!("Errors: {:?}\n", program_data.errors);
+    }
 
     let mut code_generator = CodeGenerator::new(&mut program_data);
     let compiled_code = code_generator.process_all_functions();
