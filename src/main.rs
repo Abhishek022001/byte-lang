@@ -40,6 +40,8 @@ fn main() {
     println!("{:?}", start.elapsed());
 }
 
+// This function was used like 50 commits ago and is useless right now. Keeping it in case I want
+// to add back dependencies
 fn install_dependency() {
     let dependency_name = std::env::args().nth(2).unwrap();
     let project_dir = get_project_folder().unwrap();
@@ -122,6 +124,8 @@ fn build_file() {
     println!("App Compiled \n \n \n--------------------------------------------------------------\n \n \n")
 }
 
+// This command creates a project directory with json file.
+// This is useless now but will be used in the future for importing files and dependencies
 fn init_command() {
     let project_name = std::env::args().nth(2).expect("Please provide project name");
 
@@ -192,9 +196,9 @@ fn compile_file() {
 
     // Compile Code.
     //as -o output.o output.s
-    //ld -macos_version_min 11.0.0 -o output output.o -lSystem -syslibroot `xcrun -sdk macosx --show-sdk-path` -e _start -arch arm64
+    //ld -macos_version_min 11.0.0 -o output output.o -lSystem -syslibroot `xcrun -sdk macosx --show-sdk-path` -e _main -arch arm64
 
-    // Create _start function.
+    // Create _main function.
     write!(writer, ".global _main\n.align 4\n.text\n").expect("Error Writing File");
 
     let mut tokenizer = Tokenizer::new(&mut program_data);

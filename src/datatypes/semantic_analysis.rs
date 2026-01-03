@@ -1,6 +1,6 @@
 use std::{collections::HashMap, panic};
 
-use crate::datatypes::{ast_statements::{BuiltInFunctionsAst, CgBranchLinked, CgBuiltInFunctions, CgExpression, CgStatement, CgStatementType, CgVariableInitialization, Expression, Literal, Statement, Statements, VariableType}, program_data::ProgramData, stack_frame::{StackFrame, StackVariable}, token::{BuiltInFunctions, Identifiers}};
+use crate::datatypes::{ast_statements::{BuiltInFunctionsAst, CgBranchLinked, CgBuiltInFunctions, CgExpression, CgStatement, CgStatementType, CgVariableInitialization, Expression, Literal, Statement, Statements, VariableType}, general_functions::align_memory, program_data::ProgramData, stack_frame::{StackFrame, StackVariable}, token::Identifiers};
 
 macro_rules! throw_err {
     ($self:expr, $error:expr) => {
@@ -107,8 +107,8 @@ impl<'a> SemanticAnaytis<'a> {
                     BuiltInFunctionsAst::Assembly(asm_expression) => {
                         let asm_code : String = match *asm_expression {
                             Expression::Literal(Literal::String(asm_code)) => asm_code,
-                            Expression::BuiltInFunction(BuiltInFunctionsAst::Format(format)) => {
-                                format.parse()
+                            Expression::BuiltInFunction(func) => {
+                                func.parse(self.program_data, stack_frame).unwrap().to_string()
                             },
                             _ => {
                                 throw_err!(self, "Invalid arg given to asm func");
@@ -147,6 +147,10 @@ impl<'a> SemanticAnaytis<'a> {
     }
 
     pub fn process_stack_frame(&mut self, stack_frame : usize) -> () {
+        let stack_mem = self.get_stack_frame_by_index_mut(stack_frame).stack_mem_allocated.clone();
+
+        self.get_stack_frame_by_index_mut(stack_frame).stack_mem_allocated = align_memory(stack_mem, 16);
+
         for statement in self.get_stack_frame_by_index(stack_frame).statements.clone().iter() {
             self.process_statement(statement, stack_frame);
         }

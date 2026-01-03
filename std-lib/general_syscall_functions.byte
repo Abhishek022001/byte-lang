@@ -1,0 +1,3 @@
+void : term(i64 exit_code : [reg(x0)]) {
+    asm("mov x16, #1\nsvc #0x80\n");
+}

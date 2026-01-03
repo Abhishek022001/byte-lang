@@ -1,4 +1,6 @@
-use crate::datatypes::token::{BuiltInFunctions, Identifiers, MemoryLocations, Token, TokenType};
+use std::panic;
+
+use crate::datatypes::{program_data::{self, ProgramData}, stack_frame, token::{BuiltInFunctions, Identifiers, MemoryLocations, Token, TokenType}};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Statement {
@@ -57,6 +59,7 @@ pub enum Statements {
 pub enum BuiltInFunctionsAst {
     Assembly(Box<Expression>),
     Format(Format),
+    StackOffset(String),
     BranchLinked(BranchLinkedAst)
 }
 
@@ -73,11 +76,76 @@ pub struct BranchLinkedAst {
 }
 
 impl BuiltInFunctionsAst {
-    pub fn GetReturnType(&self) -> Literal {
+    pub fn parse(&self, program_data : &mut ProgramData, stack_frame : usize) -> Option<Literal> {
         return match self {
-            BuiltInFunctionsAst::Format(_) => Literal::String(String::new()),
-            BuiltInFunctionsAst::Assembly(_) => Literal::String(String::new()),
-            _ => Literal::String(String::new())
+            BuiltInFunctionsAst::StackOffset(identifier) => {
+                let var = program_data.get_stack_variable(stack_frame, identifier, 0);
+                println!("Got var: {:?}", var);
+                println!("Stack Frame: {:?}", program_data.get_stack_frame_by_index(stack_frame));
+                Some(Literal::Number(var.local_offset as i64))
+            },
+            BuiltInFunctionsAst::Format(format) => {
+                let mut result = String::new();
+
+                let mut position : usize = 0;
+
+                for arg in format.args_provided.clone() {
+                    loop {
+                        match format.string.chars().nth(position).unwrap() {
+                            '{' => {
+                                let mut type_str = String::new();
+                                
+                                position += 1;
+
+                                loop {
+                                    match format.string.chars().nth(position).unwrap() {
+                                        '}' => {
+                                            position += 1;
+                                            break;
+                                        },
+                                        _ => {
+                                            type_str.push(format.string.chars().nth(position).unwrap());
+                                            position += 1;
+                                        }
+                                    }
+                                }
+
+                                match arg {
+                                    Expression::Literal(Literal::Number(num)) => {
+                                        result.push_str(&num.to_string());
+                                    },
+                                    Expression::Literal(Literal::String(string)) => {
+                                        result.push_str(&string);
+                                    },
+                                    Expression::BuiltInFunction(func) => {
+                                        let parsed_func = func.parse(program_data, stack_frame);
+                                        result.push_str(&parsed_func.unwrap().to_string());
+                                    }
+                                    _ => {
+                                        panic!("Invalid Format");
+                                    }
+                                }
+
+                                break;
+                            },
+                            _ => {
+                                result.push(format.string.chars().nth(position).unwrap());
+
+                                position += 1;
+                            }
+                        }
+                    }
+                }
+
+                while position < format.string.len() {
+                    result.push(format.string.chars().nth(position).unwrap());
+                    position += 1;
+                }
+
+                return Some(Literal::String(result));
+
+            }
+            _ => unreachable!()
         }
     }
 }
@@ -85,64 +153,7 @@ impl BuiltInFunctionsAst {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Format {
     pub string : String,
-    pub args_provided : Vec<Token>,
-}
-
-impl Format {
-    pub fn parse(&self) -> String {
-        let mut result = String::new();
-
-        let mut position : usize = 0;
-
-        for arg in self.args_provided.clone() {
-            loop {
-                match self.string.chars().nth(position).unwrap() {
-                    '{' => {
-                        let mut type_str = String::new();
-                        
-                        position += 1;
-
-                        loop {
-                            match self.string.chars().nth(position).unwrap() {
-                                '}' => {
-                                    position += 1;
-                                    break;
-                                },
-                                _ => {
-                                    type_str.push(self.string.chars().nth(position).unwrap());
-                                    position += 1;
-                                }
-                            }
-                        }
-
-                        match (type_str.as_str(), arg.kind) {
-                            ("i64" | "i32" | "i16" | "i8" | "u64" | "u32" | "u16" | "u8", TokenType::Literal(Literal::Number(num))) => {
-                                result.push_str(&num.to_string());
-                            },
-                            
-                            _ => {
-                                panic!("Invalid Format");
-                            }
-                        }
-
-                        break;
-                    },
-                    _ => {
-                        result.push(self.string.chars().nth(position).unwrap());
-
-                        position += 1;
-                    }
-                }
-            }
-        }
-
-        while position < self.string.len() {
-            result.push(self.string.chars().nth(position).unwrap());
-            position += 1;
-        }
-
-        return result;
-    }
+    pub args_provided : Vec<Expression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -163,6 +174,17 @@ pub enum Expression {
 pub enum Literal {
     String(String),
     Number(i64)
+}
+
+impl Literal {
+    pub fn to_string(&self) -> String {
+        let res : String = match self {
+            Literal::String(str) => str.clone(),
+            Literal::Number(num) => num.to_string()
+        };
+
+        return res;
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

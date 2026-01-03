@@ -1,12 +1,6 @@
 use std::fmt::format;
 
-use crate::datatypes::{assembly_instructions::asm::*, ast_statements::{CgBuiltInFunctions, CgExpression, CgStatement, CgStatementType, Expression, Literal, MemoryLocationsAst, VariableType}, program_data::ProgramData, stack_frame::{StackFrame, StackVariable}};
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct StackVariableRef {
-    pub local_offset : usize,
-    pub var: StackVariable
-}
+use crate::{datatypes::{assembly_instructions::asm::*, ast_statements::{CgBuiltInFunctions, CgExpression, CgStatement, CgStatementType, Literal, MemoryLocationsAst, VariableType}, program_data::ProgramData, stack_frame::StackFrame}, datatypes::general_functions::align_memory};
 
 pub struct CodeGenerator<'a> {
     program_data: &'a mut ProgramData,
@@ -42,7 +36,7 @@ impl<'a> CodeGenerator<'a> {
                             arg_mem += arg.arg_var_type.get_variable_size();
                         }
 
-                        let aligned_memory = self.align_memory(arg_mem, 16);
+                        let aligned_memory = align_memory(arg_mem, 16);
 
                         result.push_str(&allocate_stack_memory(aligned_memory));
 
@@ -100,10 +94,6 @@ impl<'a> CodeGenerator<'a> {
         };
     }
 
-    pub fn align_memory(&self, mem : usize, alignment : usize) -> usize {
-        return (mem + (alignment - 1)) & !(alignment - 1);
-    }
-
     // ASSEMBLY INSTRUCTION WRAPPERS
     
     pub fn init_stack_var(&mut self, variable_type : VariableType, initial_value : CgExpression, var_stack_loc : usize, stack_frame : usize, stack_destination : StackDestination) -> String {
@@ -112,7 +102,7 @@ impl<'a> CodeGenerator<'a> {
                 store_literal_to_stack(variable_type, num, var_stack_loc)
             },
             (_, CgExpression::StackVariableIdentifier(identifier)) => {
-                let var = self.get_stack_variable(stack_frame, &identifier, 0);
+                let var = self.program_data.get_stack_variable(stack_frame, &identifier, 0);
 
                 return format!("{}{}", stack_var_to_reg(&temp_reg_for_type(var.var.variable_type.clone()), var.local_offset, var.var.variable_type.clone()), store_reg_to_stack(&temp_reg_for_type(var.var.variable_type.clone()), var_stack_loc, var.var.variable_type, stack_destination));
             }
@@ -123,7 +113,7 @@ impl<'a> CodeGenerator<'a> {
     }
 
     pub fn load_stack_var_to_reg(&mut self, var_name : &String, register : &str, stack_frame : usize) -> String {
-        let var = self.get_stack_variable(stack_frame, var_name, 0);
+        let var = self.program_data.get_stack_variable(stack_frame, var_name, 0);
 
         return stack_var_to_reg(register, var.local_offset, var.var.variable_type);
     }
@@ -133,11 +123,7 @@ impl<'a> CodeGenerator<'a> {
     pub fn initialize_stack_frame(&mut self, stack_frame : usize) -> String {
         let mem = self.get_stack_frame_by_index(stack_frame).stack_mem_allocated.clone();
 
-        let aligned_mem = self.align_memory(mem, 16);
-
-        self.get_stack_frame_by_index_mut(stack_frame).stack_mem_allocated = aligned_mem;
-
-        return create_stack_frame(aligned_mem);
+        return create_stack_frame(mem);
     }
 
     pub fn return_stack_frame(&mut self, stack_frame : usize) -> String {
@@ -179,23 +165,6 @@ impl<'a> CodeGenerator<'a> {
         }
 
         return result;
-    }
-
-    pub fn get_stack_variable(&mut self, stack_frame : usize, var_name : &String, offset : usize) -> StackVariableRef {
-        let stack_frame_ref = self.get_stack_frame_by_index(stack_frame);
-
-        match stack_frame_ref.variables.get(var_name) {
-            Some(refrence) => {
-                return StackVariableRef { local_offset: offset + (stack_frame_ref.stack_mem_allocated - refrence.offset - refrence.variable_size), var: refrence.clone() };
-            },
-            None => {
-                if stack_frame_ref.parent == usize::MAX {
-                    unreachable!();
-                } else {
-                    return self.get_stack_variable(stack_frame_ref.parent, var_name, offset + (stack_frame_ref.stack_mem_allocated));
-                }
-            }
-        }
     }
 
     pub fn traverse_stack_frame_children(&mut self, stack_frame_index : usize) -> String {

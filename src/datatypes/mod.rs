@@ -9,3 +9,4 @@ pub mod token;
 pub mod tokenizer;
 pub mod program_data;
 pub mod assembly_instructions;
+pub mod general_functions;

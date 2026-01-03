@@ -1,5 +1,7 @@
 use crate::datatypes::ast_statements::{Literal, VariableType};
 
+// These are tokens constructed inside Tokenizer and used than in parser to create AstNodes
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub kind: TokenType,
@@ -43,6 +45,7 @@ pub enum BuiltInFunctions {
     Compare,
     Assembly,
     Format,
+    StackOffset,   
     Branch,
     BranchLinked
 }

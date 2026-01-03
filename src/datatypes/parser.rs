@@ -61,14 +61,34 @@ impl<'a> Parser<'a> {
 
         self.advance_position();
 
-        let mut args : Vec<Token> = Vec::new();
+        let mut args : Vec<Expression> = Vec::new();
 
         loop {
             match self.current_token().kind {
                 TokenType::Punctuation(Punctuations::Comma) => {
                     self.advance_position();
-                    args.push(self.current_token());
-                    self.advance_position();
+                    match self.current_token().kind {
+                        TokenType::Literal(literal) => {
+                            args.push(Expression::Literal(literal));
+                            self.advance_position();
+                        },
+                        TokenType::BuiltInFunctions(func) => {
+                            let next_parsed = self.parse_next();
+
+                            if let Some(parsed_unwrapped) = next_parsed {
+                                if let Statements::Expression(expression) = parsed_unwrapped.statement_type {
+                                    args.push(expression);
+                                } else {
+                                    throw_err!(self, "Expected expression inside format");
+                                }
+                            } else {
+                                throw_err!(self, "Failed to parse format arg");
+                            }
+                        },
+                        _ => {
+                            throw_err!(self, "Invalid arg given to format");
+                        }
+                    }
                 },
                 TokenType::Punctuation(Punctuations::ClosedParenthesis) => {
                     self.advance_position();
@@ -254,6 +274,27 @@ impl<'a> Parser<'a> {
             TokenType::BuiltInFunctions(BuiltInFunctions::Format) => {
                 return self.parse_format_built_in_function(&token);
             },
+            TokenType::BuiltInFunctions(BuiltInFunctions::StackOffset) => {
+                self.advance_position();
+
+                expect_token_with_err!(TokenType::Punctuation(Punctuations::OpenParenthesis), self);
+
+                let TokenType::Identifiers(Identifiers::Identifier(var_name)) = self.current_token().kind else {
+                    throw_err!(self, "Expected identifier");
+                };
+
+                self.advance_position();
+
+                if TokenType::Punctuation(Punctuations::ClosedParenthesis) != self.current_token().kind {
+                    throw_err!(self, "Expected closed parenthesis");
+                };
+
+                let end_pos = self.current_token().end_pos;
+
+                self.advance_position();
+
+                return Some(Statement::new(&token, end_pos, Statements::Expression(Expression::BuiltInFunction(BuiltInFunctionsAst::StackOffset(var_name)))));
+            },
             TokenType::BuiltInFunctions(BuiltInFunctions::Assembly) => {
                 self.advance_position();
 
@@ -266,11 +307,14 @@ impl<'a> Parser<'a> {
                         Expression::Literal(Literal::String(str))
                     },
                     TokenType::BuiltInFunctions(BuiltInFunctions::Format) => {
-                        let format = self.parse_next().unwrap();
-                        if let Statements::Expression(Expression::BuiltInFunction(BuiltInFunctionsAst::Format(format))) = format.statement_type {
-                            Expression::BuiltInFunction(BuiltInFunctionsAst::Format(format))
+                        if let Some(format) = self.parse_next() {
+                            if let Statements::Expression(Expression::BuiltInFunction(BuiltInFunctionsAst::Format(format))) = format.statement_type {
+                                Expression::BuiltInFunction(BuiltInFunctionsAst::Format(format))
+                            } else {
+                                throw_err!(self, "Invalid token given to function asm");
+                            }
                         } else {
-                            throw_err!(self, "Invalid token given to function asm");
+                            throw_err!(self, "Failed to parse format");
                         }
                     }
                     _ => {

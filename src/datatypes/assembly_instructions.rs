@@ -61,7 +61,7 @@ pub mod asm {
     pub fn store_literal_to_stack(var_type : VariableType, num : i64, offset : usize) -> String {
         let temp_reg = temp_reg_for_type(var_type.clone());
 
-        return format!("mov {}, {}\n{} {}, [x29, #-{}]\n", temp_reg, num, store_instruction_for_type(var_type), temp_reg, offset);
+        return format!("mov {}, #{}\n{} {}, [x29, #-{}]\n", temp_reg, num, store_instruction_for_type(var_type), temp_reg, offset);
     }
 
     pub fn store_reg_to_stack(reg : &str, offset : usize, var_type : VariableType, stack_destination : StackDestination) -> String {

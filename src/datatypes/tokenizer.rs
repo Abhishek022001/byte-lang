@@ -117,6 +117,9 @@ impl<'a> Tokenizer<'a> {
                 self.line += 1;
                 self.col = 1;
             },
+            "stack_offset" => {
+                return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::StackOffset), ..token_default});
+            }
             ";" => {
                 return Some(Token{kind: TokenType::Punctuation(Punctuations::Semicolon), ..token_default});
             },
