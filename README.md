@@ -4,6 +4,26 @@
 
 **Byte Lang** is an programming language designed to combine the low-level control of assembly language with the readability and structure of high-level languages. Currently in its early stages.
 
+## Contributing
+
+Contributions are very welcome. This project is still early and needs help
+
+- Feel free to open a GitHub issue for **anything**: bug reports, feature requests, questions, or even just ideas.
+- No question is too simple to ask. Don't hesitate to request explanations of files, functions, or literally anything else.
+- Every contribution, no matter how small, is greatly appreciated.
+- If you'd like to work on something, comment on an issue and tag me to get it assigned. Feel free to ask questions.
+
+## Project Goals
+
+- This programming language is designed to behave **exactly as written**. Zero optimizations.
+- At the same time, it aims to be highly performant through full manual control (with more effort required).
+- Many compile time functions that allow the user to write complex and performant assembly wrappers.
+
+It's particularly suited for:
+- Operating systems and kernels
+- Low-level libraries
+- Performance-critical code
+
 ## Features
 
 - **Early Development**: Byte Lang is still evolving with a limited set of commands and features.
