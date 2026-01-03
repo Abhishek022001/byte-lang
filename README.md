@@ -37,19 +37,27 @@ Since Byte Lang is in its early stages, the installation process involves clonin
 
 ### Example
 ```bash
-void : term(i32 exit_code : [reg(x0)], i32 test_num : [stack]) {
-    asm(format("
-        mov x16, #1
-        svc #0x80
-    "));
+void : term(i64 exit_code : [reg(x0)]) {
+    asm(format("mov x1, #{}\nmov x16, #1\nsvc #0x80\n", 10));
+}
+
+void : test(i32 test_var : [stack], i64 test_var_two : [stack]) {
+
 }
 
 void : main() {
-    i32 var = 4;
+    i32 var = 5;
     i16 var2 = 2;
     i8 var3 = 1;
-    i32 exit_code = 0;
+    i64 exit_code = 30;
+    i64 exit_code_clone = exit_code;
+    u64 test = 10;
+    u8 something = 30;
+    u8 something_clone = something;
+    i64 exit_code_success = 0;
 
-    bl(term, exit_code, var);
+    bl(test, var, exit_code_clone);
+    
+    bl(term, exit_code_success);
 }
 ```
