@@ -1,6 +1,6 @@
 // Just an example that does literally nothing just for testing //
 void : term(i64 exit_code : [reg(x0)]) {
-    asm("mov x16, #1\nsvc #0x80\n");
+    asm(format("mov x1, #{}\nmov x16, #1\nsvc #0x80\n", 10));
 }
 
 void : test(i32 test_var : [stack], i64 test_var_two : [stack]) {

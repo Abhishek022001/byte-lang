@@ -93,22 +93,13 @@ impl BuiltInFunctionsAst {
                     loop {
                         match format.string.chars().nth(position).unwrap() {
                             '{' => {
-                                let mut type_str = String::new();
-                                
                                 position += 1;
 
-                                loop {
-                                    match format.string.chars().nth(position).unwrap() {
-                                        '}' => {
-                                            position += 1;
-                                            break;
-                                        },
-                                        _ => {
-                                            type_str.push(format.string.chars().nth(position).unwrap());
-                                            position += 1;
-                                        }
-                                    }
+                                if format.string.chars().nth(position).unwrap() != '}' {
+                                    panic!("Expected '}}' after '{{' in format");
                                 }
+
+                                position += 1;
 
                                 match arg {
                                     Expression::Literal(Literal::Number(num)) => {
