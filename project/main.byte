@@ -1,16 +1,23 @@
+// Just an example that does literally nothing just for testing //
 void : term(i64 exit_code : [reg(x0)], i32 test_num : [stack], u8 test_unsigned : [stack]) {
     asm(format("mov x16, #1\nsvc #0x80\n"));
+}
+
+void : test(i32 test_var : [stack], i64 test_var_two : [stack]) {
+
 }
 
 void : main() {
     i32 var = 5;
     i16 var2 = 2;
     i8 var3 = 1;
-    i64 exit_code = 0;
+    i64 exit_code = 30;
     i64 exit_code_clone = exit_code;
     u64 test = 10;
     u8 something = 30;
     u8 something_clone = something;
+
+    bl(test, var, exit_code_clone);
     
     bl(term, exit_code_clone, var, something_clone);
 }

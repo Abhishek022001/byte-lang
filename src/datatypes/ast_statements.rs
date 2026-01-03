@@ -162,7 +162,7 @@ pub enum Expression {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
     String(String),
-    Number(i32)
+    Number(i64)
 }
 
 #[derive(Debug, PartialEq, Clone)]

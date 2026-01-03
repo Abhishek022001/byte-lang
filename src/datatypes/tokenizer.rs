@@ -185,7 +185,7 @@ impl<'a> Tokenizer<'a> {
                 return Some(Token{kind: TokenType::BuiltInFunctions(BuiltInFunctions::Loop), ..token_default});
             },
             _ => {
-                match res.parse::<i32>() {
+                match res.parse::<i64>() {
                     Ok(num) => {
                         return Some(Token{kind: TokenType::Literal(Literal::Number(num)), ..token_default});
                     },
