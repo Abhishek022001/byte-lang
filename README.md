@@ -1,17 +1,14 @@
 # Byte Lang
 
-## Byte Lang currently supports only ARM64 on macOS. Support for x86 and other architectures will be implemented later.
+### Byte Lang is a systems oriented programming language that gives you full manual control like assembly, but with structured, readable syntax inspired by high-level languages.
+### Currently in early development: compiles to ARM64 assembly (tested on macOS Apple Silicon). More architectures coming soon.
 
-**Byte Lang** is an programming language designed to combine the low-level control of assembly language with the readability and structure of high-level languages. Currently in its early stages.
-
-## Contributing
-
-Contributions are very welcome. This project is still early and needs help
-
-- Feel free to open a GitHub issue for **anything**: bug reports, feature requests, questions, or even just ideas.
-- No question is too simple to ask. Don't hesitate to request explanations of files, functions, or literally anything else.
-- Every contribution, no matter how small, is greatly appreciated.
-- If you'd like to work on something, comment on an issue and tag me to get it assigned. Feel free to ask questions.
+- [Features](#features)
+- [Installation](#installation)
+- [Example](#example)
+- [Commands](#commands)
+- [Project Goals](#project-goals)
+- [Contributing](#contributing)
 
 ## Project Goals
 
@@ -30,9 +27,16 @@ It's particularly suited for:
 - **Low-Level Control**: Directly manipulate hardware and system resources with assembly-like syntax.
 - **Readable Syntax**: A structured and human-friendly approach to low-level programming.
 
-## Getting Started
+## Contributing
 
-### Installation
+Contributions are very welcome. This project is still early and needs help
+
+- Feel free to open a GitHub issue for **anything**: bug reports, feature requests, questions, or even just ideas.
+- No question is too simple to ask. Don't hesitate to request explanations of files, functions, or literally anything else.
+- Every contribution, no matter how small, is greatly appreciated.
+- If you'd like to work on something, comment on an issue and tag me to get it assigned. Feel free to ask questions.
+
+## Installation
 
 Since Byte Lang is in its early stages, the installation process involves cloning the repository and building from source:
 
@@ -51,11 +55,11 @@ Since Byte Lang is in its early stages, the installation process involves clonin
    ./byte-lang (command)
    ```
 
-### Commands
+## Commands
 * run (file location like example.byte)
 * build (file location like example.byte)
 
-### Example
+## Example
 ```bash
 void : term(i64 exit_code : [reg(x0)]) {
     asm(format("mov x1, #{}\nmov x16, #1\nsvc #0x80\n", 10));
