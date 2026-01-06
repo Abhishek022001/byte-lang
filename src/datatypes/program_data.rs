@@ -32,13 +32,14 @@ impl ProgramData {
 
         match stack_frame_ref.variables.get(var_name) {
             Some(refrence) => {
-                return StackVariableRef { local_offset: offset + (stack_frame_ref.stack_mem_allocated - refrence.offset - refrence.variable_size), var: refrence.clone() };
+                return StackVariableRef { local_offset: offset + stack_frame_ref.stack_mem_allocated - refrence.offset - refrence.variable_size, var: refrence.clone() };
             },
             None => {
                 if stack_frame_ref.parent == usize::MAX {
                     unreachable!();
                 } else {
-                    return self.get_stack_variable(stack_frame_ref.parent, var_name, offset + (stack_frame_ref.stack_mem_allocated));
+                    // Also count for x30 stored inside stack
+                    return self.get_stack_variable(stack_frame_ref.parent, var_name, offset + 16 + stack_frame_ref.stack_mem_allocated);
                 }
             }
         }

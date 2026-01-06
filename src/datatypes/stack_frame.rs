@@ -8,7 +8,7 @@ use crate::datatypes::ast_statements::{CgStatement, Statement, VariableType};
 pub struct StackVariable {
     pub variable_type : VariableType,
     pub variable_size : usize, 
-    pub offset : usize
+    pub offset : usize 
 }
 
 #[derive(Clone, Debug, PartialEq)]
