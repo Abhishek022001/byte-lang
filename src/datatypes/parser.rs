@@ -1,6 +1,7 @@
 use std::panic;
 
 use crate::datatypes::ast_statements::{BranchLinkedAst, BuiltInFunctionsAst, Expression, Format, Function, FunctionArg, FunctionDeclaration, Literal, MemoryLocationsAst, Statement, Statements, VariableDeclaration, VariableType};
+use crate::datatypes::general_functions::align_memory;
 use crate::datatypes::program_data::ProgramData;
 use crate::datatypes::token::{BuiltInFunctions, Identifiers, Keywords, MemoryLocations, Operators, Punctuations, Token, TokenType};
 
@@ -123,6 +124,8 @@ impl<'a> Parser<'a> {
 
         let mut args : Vec<FunctionArg> = Vec::new();
 
+        let mut stack_mem_allocated = 0;
+
         loop {
             match self.current_token().kind.clone() {
                 TokenType::Punctuation(Punctuations::ClosedParenthesis) => break,
@@ -136,7 +139,8 @@ impl<'a> Parser<'a> {
                     self.advance_position();
 
                     if TokenType::Punctuation(Punctuations::Colon) != self.current_token().kind {
-                        args.push(FunctionArg { arg_var_type: var_type, arg_name, memory_location: MemoryLocationsAst::Stack });
+                        args.push(FunctionArg { arg_var_type: var_type.clone(), arg_name, memory_location: MemoryLocationsAst::Stack(stack_mem_allocated) });
+                        stack_mem_allocated += var_type.get_variable_size();
                         self.advance_position();
                         continue;
                     }
@@ -148,7 +152,8 @@ impl<'a> Parser<'a> {
                     let memory_location : MemoryLocationsAst = match self.current_token().kind {
                         TokenType::MemoryLocation(MemoryLocations::Stack) => {
                             self.advance_position();
-                            MemoryLocationsAst::Stack
+                            stack_mem_allocated += var_type.get_variable_size();
+                            MemoryLocationsAst::Stack(stack_mem_allocated - var_type.get_variable_size())
                         },
                         TokenType::MemoryLocation(MemoryLocations::Register) => {
                             self.advance_position();
@@ -197,7 +202,8 @@ impl<'a> Parser<'a> {
         return Some(Statement::new(first_token, self.current_token().end_pos, Statements::FunctionDeclaration(FunctionDeclaration{
             args,
             name : func_name,
-            return_type: func_return_type
+            return_type: func_return_type,
+            args_stack_mem_allocated: align_memory(stack_mem_allocated, 16)
         })));
     }
 

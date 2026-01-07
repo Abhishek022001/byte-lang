@@ -1,6 +1,6 @@
 use std::{collections::HashMap, panic};
 
-use crate::datatypes::{ast_statements::{BuiltInFunctionsAst, CgBranchLinked, CgBuiltInFunctions, CgExpression, CgStatement, CgStatementType, CgVariableInitialization, Expression, Literal, Statement, Statements, VariableType}, general_functions::align_memory, program_data::ProgramData, stack_frame::{StackFrame, StackVariable}, token::Identifiers};
+use crate::datatypes::{ast_statements::{AstIdentifiers, BuiltInFunctionsAst, CgBranchLinked, CgBuiltInFunctions, CgExpression, CgIdentifiers, CgStatement, CgStatementType, CgVariableInitialization, Expression, FunctionArg, Literal, StackVariableData, Statement, Statements, VariableType}, general_functions::align_memory, program_data::ProgramData, stack_frame::{StackFrame, StackVariable}, token::Identifiers};
 
 macro_rules! throw_err {
     ($self:expr, $error:expr) => {
@@ -28,9 +28,11 @@ impl<'a> SemanticAnaytis<'a> {
                     let init_valid = match (var_init.variable_type.clone(), init_value.clone()) {
                         (VariableType::I8  | VariableType::I16 | VariableType::I32 | VariableType::I64 | VariableType::U8 | VariableType::U16 | VariableType::U32 | VariableType::U64,
                         Expression::Literal(Literal::Number(_))) => true,
-                        (_, Expression::Identifier(Identifiers::Identifier(var_name))) => {
-                            if let Some(var) = self.get_stack_variable(stack_frame, &var_name) {
+                        (_, Expression::Identifier(Identifiers::Identifier(identifier))) => {
+                            if let Some(var) = self.get_stack_variable(stack_frame, &identifier) {
                                 var.variable_type == var_init.variable_type
+                            } else if let Some(func_arg) = self.program_data.get_function_stack_arg_ref(stack_frame, &identifier) {
+                                func_arg.var.arg_var_type == var_init.variable_type
                             } else {
                                 false
                             }
@@ -44,8 +46,10 @@ impl<'a> SemanticAnaytis<'a> {
 
                     let cg_val = self.expression_to_cg(stack_frame, init_value);
 
+                    let var_being_init_ref = self.program_data.get_stack_variable_ref(stack_frame, &var_init.name, 0);
+
                     if let Some(cg_val_unwrapped) = cg_val {
-                        self.add_cg_statement_to_stack_frame(stack_frame, CgStatement{statement_type: CgStatementType::VariableInitialization(CgVariableInitialization{init_value: cg_val_unwrapped, var_name: var_init.name, stack_frame: stack_frame})})
+                        self.add_cg_statement_to_stack_frame(stack_frame, CgStatement{statement_type: CgStatementType::VariableInitialization(CgVariableInitialization{init_value: cg_val_unwrapped, stack_offset: var_being_init_ref.unwrap().local_offset, variable_type: var_init.variable_type})});
                     } else {
                         return;
                     }
@@ -79,15 +83,10 @@ impl<'a> SemanticAnaytis<'a> {
                                         VariableType::I8 | VariableType::I16 | VariableType::I32
                                     ) => true,
                                     (
-                                        CgExpression::StackVariableIdentifier(identifier),
+                                        CgExpression::Identifier(CgIdentifiers::StackVariableData(stack_var_data)),
                                         _
                                     ) => {
-                                        match self.borrow_stack_variable_with_sf_index(stack_frame, identifier) {
-                                            Some(var) => {
-                                                var.variable_type == bl_function.args.get(i).unwrap().arg_var_type
-                                            },
-                                            None => false
-                                        }
+                                        stack_var_data.variable_type == bl_function.args.get(i).unwrap().arg_var_type
                                     },
                                     _ => false
                                 };
@@ -130,8 +129,10 @@ impl<'a> SemanticAnaytis<'a> {
         match expression {
             Expression::Literal(literal) => return Some(CgExpression::Literal(literal)),
             Expression::Identifier(Identifiers::Identifier(identifier)) => {
-                if let Some(variable) = self.get_stack_variable(stack_frame, &identifier) {
-                    return Some(CgExpression::StackVariableIdentifier(identifier));
+                if let Some(stack_var_ref) = self.program_data.get_stack_variable_ref(stack_frame, &identifier, 0) {
+                    return Some(CgExpression::Identifier(CgIdentifiers::StackVariableData(StackVariableData{offset: stack_var_ref.local_offset, variable_type: stack_var_ref.var.variable_type})));
+                } else if let Some(function_arg_ref) = self.program_data.get_function_stack_arg_ref(stack_frame, &identifier) {
+                    return Some(CgExpression::Identifier(CgIdentifiers::StackVariableData(StackVariableData{offset: function_arg_ref.local_offset, variable_type: function_arg_ref.var.arg_var_type})));
                 }
 
                 self.throw_err("Variable not found");

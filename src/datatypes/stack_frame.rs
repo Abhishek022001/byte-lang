@@ -18,15 +18,16 @@ pub struct StackFrame {
     pub statements : Vec<Statement>,
     pub cg_statements : Vec<CgStatement>,
     pub children : Vec<usize>,
-    pub parent : usize
+    pub parent : usize,
+    pub function : String
 }
 
 impl StackFrame {
-    pub fn new(parent : usize) -> Self {
-        return Self { variables: HashMap::new(), stack_mem_allocated: 0, statements: Vec::new(), cg_statements: Vec::new(), children: Vec::new(), parent: parent }
+    pub fn new(parent : usize, function_name : String) -> Self {
+        return Self { variables: HashMap::new(), stack_mem_allocated: 0, statements: Vec::new(), cg_statements: Vec::new(), children: Vec::new(), parent: parent, function: function_name }
     }
 
-    pub fn default() -> Self {
-        Self { variables: HashMap::new(), stack_mem_allocated: 0, statements: Vec::new(), cg_statements: Vec::new(), children: Vec::new(), parent: usize::MAX }
+    pub fn default(function_name : String) -> Self {
+        Self { variables: HashMap::new(), stack_mem_allocated: 0, statements: Vec::new(), cg_statements: Vec::new(), children: Vec::new(), parent: usize::MAX, function: function_name  }
     }
 }

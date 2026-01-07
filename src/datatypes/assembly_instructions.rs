@@ -10,35 +10,22 @@ pub mod asm {
         StackFramePointer
     }
 
-    impl StackDestination {
-        pub fn register(&self) -> String {
-            let res : &str = match self {
-                StackDestination::StackPointer => "sp",
-                StackDestination::StackFramePointer => "x29"
-            };
-
-            return String::from(res);
-        }
-    }
-
-    pub fn temp_reg_for_type(var_type : VariableType) -> String {
+    pub fn temp_reg_for_type(var_type : VariableType, load_instruction : bool) -> String {
         let res : &str = match var_type {
-            VariableType::I8 => "w10",
-            VariableType::I16 => "w10",
-            VariableType::I32 => "x10",
-            VariableType::I64 => "x10",
-            VariableType::U8 => "w10",
-            VariableType::U16 => "w10",
-            VariableType::U32 => "w10",
-            VariableType::U64 => "x10",
-            _ => unreachable!()
+            VariableType::U8 | VariableType::U16 | VariableType::U32 => "w10",
+            VariableType::I64 | VariableType::U64 => "x10",
+            VariableType::I8 | VariableType::I16 | VariableType::I32 => {
+                if load_instruction { "x10" } else { "w10" }
+            }
+
+            _ => unreachable!(),
         };
 
         return String::from(res);
     }
 
     pub fn store_literal_to_stack(var_type : VariableType, num : i64, offset : usize) -> String {
-        let temp_reg = temp_reg_for_type(var_type.clone());
+        let temp_reg = temp_reg_for_type(var_type.clone(), false);
 
         return format!("mov {}, #{}\n{} {}, [sp, #{}]\n", temp_reg, num, store_instruction_for_type(var_type), temp_reg, offset);
     }
@@ -111,7 +98,7 @@ pub mod asm {
         }
     }
 
-    pub fn stack_var_to_reg(reg : &str, offset : usize, var_type : VariableType) -> String {
+    pub fn variable_to_reg(reg : &str, offset : usize, var_type : VariableType) -> String {
         return format!("{} {}, [sp, #{}]\n", load_instruction_for_type(var_type), reg, offset);
     }
 }

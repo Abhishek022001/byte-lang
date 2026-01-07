@@ -1,6 +1,6 @@
 use std::fmt::format;
 
-use crate::datatypes::{assembly_instructions::asm::*, ast_statements::{CgBuiltInFunctions, CgExpression, CgStatement, CgStatementType, Literal, MemoryLocationsAst, VariableType}, general_functions::align_memory, program_data::{ProgramData, StackVariableRef}, stack_frame::StackFrame};
+use crate::datatypes::{assembly_instructions::asm::*, ast_statements::{AstIdentifiers, CgBuiltInFunctions, CgExpression, CgIdentifiers, CgStatement, CgStatementType, Literal, MemoryLocationsAst, VariableType}, general_functions::align_memory, program_data::{ProgramData, StackVariableRef}, stack_frame::StackFrame};
 
 pub struct CodeGenerator<'a> {
     program_data: &'a mut ProgramData,
@@ -15,9 +15,7 @@ impl<'a> CodeGenerator<'a> {
     pub fn generate_statement(&mut self, statement : &CgStatement, stack_frame : usize) -> String {
         match statement.statement_type.clone() {
             CgStatementType::VariableInitialization(var_init) => {
-                let variable = self.program_data.get_stack_variable(stack_frame, &var_init.var_name, 0);
-
-                return self.init_stack_var(variable.var.variable_type.clone(), var_init.init_value, variable.local_offset, stack_frame);
+                return self.init_var(var_init.stack_offset, var_init.variable_type.clone(), var_init.init_value);
             },
             CgStatementType::BuiltInFunction(built_in_function) => {
                 match built_in_function {
@@ -25,21 +23,11 @@ impl<'a> CodeGenerator<'a> {
                         let mut result = String::new();
 
                         let function_args = self.program_data.functions.get(&branch_linked.function_name).unwrap().args.clone();
+                        let function_stack_args_mem_allocated = self.program_data.functions.get(&branch_linked.function_name).unwrap().stack_mem_allocated;
 
-                        let mut arg_mem = 0;
-                        for arg in function_args.clone() {
-                            if arg.memory_location != MemoryLocationsAst::Stack {
-                                continue;
-                            }
-
-                            arg_mem += arg.arg_var_type.get_variable_size();
+                        if function_stack_args_mem_allocated != 0 {
+                            result.push_str(&allocate_stack_memory(function_stack_args_mem_allocated));
                         }
-
-                        let aligned_memory = align_memory(arg_mem, 16);
-
-                        result.push_str(&allocate_stack_memory(aligned_memory));
-
-                        let mut arg_stack_offset = 0;
 
                         for i in 0..function_args.len() {
                             let arg_provided = branch_linked.args.get(i).unwrap();
@@ -51,27 +39,27 @@ impl<'a> CodeGenerator<'a> {
                                         CgExpression::Literal(Literal::Number(num)) => {
                                             result.push_str(&mov_num_to_reg(&register, num.clone()));
                                         },
-                                        CgExpression::StackVariableIdentifier(identifier) => {
-                                            result.push_str(&self.load_stack_var_to_reg(identifier, register.as_str(), stack_frame));
+                                        CgExpression::Identifier(CgIdentifiers::StackVariableData(stack_var_data)) => {
+                                            result.push_str(&variable_to_reg(&register, function_stack_args_mem_allocated + stack_var_data.offset, stack_var_data.variable_type.clone()));
                                         },
                                         _ => todo!()
                                     }
                                 },
-                                MemoryLocationsAst::Stack => {
+                                MemoryLocationsAst::Stack(stack_arg_offset) => {
                                     match arg_provided {
-                                        CgExpression::Literal(Literal::Number(_)) => {
+                                        CgExpression::Literal(Literal::Number(num)) => {
                                             let var_size = arg_expecting.arg_var_type.get_variable_size();
 
-                                            arg_stack_offset += var_size;
-
-                                            result.push_str(&self.init_stack_var(arg_expecting.arg_var_type.clone(), arg_provided.clone(), aligned_memory - arg_stack_offset, stack_frame));
+                                            result.push_str(&store_literal_to_stack(arg_expecting.arg_var_type.clone(), num.clone(), function_stack_args_mem_allocated - stack_arg_offset - var_size));
                                         },
-                                        CgExpression::StackVariableIdentifier(var) => {
-                                            let var_size = arg_expecting.arg_var_type.get_variable_size();
+                                        CgExpression::Identifier(CgIdentifiers::StackVariableData(stack_var_data)) => {
+                                            let mut stack_var_data_clone = stack_var_data.clone();
 
-                                            arg_stack_offset += var_size;
+                                            let var_size = stack_var_data_clone.variable_type.get_variable_size();
 
-                                            result.push_str(&self.init_stack_var(arg_expecting.arg_var_type.clone(), arg_provided.clone(), aligned_memory - arg_stack_offset, stack_frame));
+                                            stack_var_data_clone.offset += function_stack_args_mem_allocated;
+
+                                            result.push_str(&self.init_var(function_stack_args_mem_allocated - stack_arg_offset - var_size, stack_var_data_clone.variable_type.clone(), CgExpression::Identifier(CgIdentifiers::StackVariableData(stack_var_data_clone))));
                                         },
                                         _ => unreachable!()
                                     }
@@ -81,7 +69,10 @@ impl<'a> CodeGenerator<'a> {
                         }
 
                         result.push_str(&jump_to_function(&branch_linked.function_name));
-                        result.push_str(&deallocate_stack_memory(aligned_memory));
+
+                        if function_stack_args_mem_allocated != 0 {
+                            result.push_str(&deallocate_stack_memory(function_stack_args_mem_allocated));
+                        }
 
                         return result;
                     },
@@ -93,31 +84,23 @@ impl<'a> CodeGenerator<'a> {
         };
     }
 
-    // ASSEMBLY INSTRUCTION WRAPPERS
-    
-    pub fn init_stack_var(&mut self, variable_type : VariableType, initial_value : CgExpression, var_stack_loc : usize, stack_frame : usize) -> String {
-        let ret_str = match (variable_type.clone(), initial_value) {
-            (_, CgExpression::Literal(Literal::Number(num))) => {
-                store_literal_to_stack(variable_type, num, var_stack_loc)
+    pub fn init_var(&mut self, target_offset : usize, variable_type : VariableType, expression : CgExpression) -> String {
+        match (variable_type.clone(), expression.clone()) {
+            (
+                _,
+                CgExpression::Literal(Literal::Number(num))
+            ) => {
+                return String::from(store_literal_to_stack(variable_type, num, target_offset));
             },
-            (_, CgExpression::StackVariableIdentifier(identifier)) => {
-                let var = self.program_data.get_stack_variable(stack_frame, &identifier, 0);
-
-                return format!("{}{}", stack_var_to_reg(&temp_reg_for_type(var.var.variable_type.clone()), var.local_offset, var.var.variable_type.clone()), store_reg_to_stack(&temp_reg_for_type(var.var.variable_type.clone()), var_stack_loc, var.var.variable_type));
+            (
+                _,
+                CgExpression::Identifier(CgIdentifiers::StackVariableData(stack_var_data))
+            ) => {
+                return String::from(format!("{}{}", variable_to_reg(&temp_reg_for_type(variable_type.clone(), true), stack_var_data.offset, variable_type.clone()), store_reg_to_stack(&temp_reg_for_type(variable_type.clone(), false), target_offset, variable_type)));
             }
-            _ => todo!()
-        };
-
-        return ret_str;
+            _ => unreachable!()
+        }
     }
-
-    pub fn load_stack_var_to_reg(&mut self, var_name : &String, register : &str, stack_frame : usize) -> String {
-        let var = self.program_data.get_stack_variable(stack_frame, var_name, 0);
-
-        return stack_var_to_reg(register, var.local_offset, var.var.variable_type);
-    }
-
-    // END
 
     pub fn initialize_stack_frame(&mut self, stack_frame : usize) -> String {
         let mem = self.get_stack_frame_by_index(stack_frame).stack_mem_allocated.clone();

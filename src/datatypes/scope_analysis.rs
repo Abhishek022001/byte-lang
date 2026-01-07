@@ -37,11 +37,9 @@ impl<'a> ScopeAnalysis<'a> {
 
                     let stack_frame_index = self.program_data.stack_frames.len();
 
-                    self.program_data.stack_frames.push(StackFrame::default());
+                    self.program_data.stack_frames.push(StackFrame::default(func_declaration.name.clone()));
 
-                    self.program_data.functions.insert(func_declaration.name.clone(), Function{first_stack_frame: stack_frame_index, args: func_declaration.args, return_type: func_declaration.return_type});
-
-
+                    self.program_data.functions.insert(func_declaration.name.clone(), Function{first_stack_frame: stack_frame_index, args: func_declaration.args, return_type: func_declaration.return_type, stack_mem_allocated: func_declaration.args_stack_mem_allocated});
 
                     self.scope_stack.push(stack_frame_index);
 
@@ -88,7 +86,10 @@ impl<'a> ScopeAnalysis<'a> {
     pub fn create_new_scope(&mut self) -> () {
         let new_frame_index = self.program_data.stack_frames.len();
 
-        self.program_data.stack_frames.push(StackFrame::default());
+        let parent = self.scope_stack.last().unwrap().clone();
+        let function_name = self.get_stack_frame_by_index(parent.clone()).function.clone();
+
+        self.program_data.stack_frames.push(StackFrame::new(parent, function_name));
 
         self.get_current_stack_frame().children.push(new_frame_index);
 
